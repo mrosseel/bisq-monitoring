@@ -185,7 +185,7 @@ public class Monitoring {
                     continue;
                 }
                 String resultString = convertStreamToString(pr.getInputStream());
-                String resultStringNoNewlines = new String(resultString).replace("\n", " | ");
+                String resultStringNoNewlines = new String(resultString).replace("\n", "");
                 if(!Strings.isNullOrEmpty(resultStringNoNewlines)) {
                     log.info(resultStringNoNewlines);
                 }
@@ -236,10 +236,10 @@ public class Monitoring {
         log.error("Error in {} {}, reason: {}", nodeType.toString(), address, reason);
         NodeDetail node = getNode(address);
 
-        if (NodeType.BTC_NODE.equals(nodeType) && node.hasError() && node.isFirstTimeOffender) {
+        if (NodeType.BTC_NODE.equals(nodeType) && node.hasError() && node.isFirstTimeOffender) { // btc node with error and that error was its first error, we log
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " failed twice", appendBadNodesSizeToString(reason));
 
-        } else if (!NodeType.BTC_NODE.equals(nodeType)) {
+        } else if (!NodeType.BTC_NODE.equals(nodeType) && !node.hasError()) { // first time node has error, we log
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address, appendBadNodesSizeToString(reason));
         }
         node.addError(reason);
