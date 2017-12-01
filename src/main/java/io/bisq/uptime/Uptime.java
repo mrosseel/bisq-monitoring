@@ -1,16 +1,14 @@
 package io.bisq.uptime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 import net.gpedro.integrations.slack.SlackApi;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -102,7 +100,6 @@ public class Uptime {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-*/
         FileOutputStream fos = null;
         try {
             NodeConfig nodeConfig = new NodeConfig();
@@ -115,6 +112,8 @@ public class Uptime {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        */
+
     }
 
     public void checkClearnetBitcoinNodes(SlackApi api, List<String> ipAddresses) {
@@ -185,8 +184,10 @@ public class Uptime {
                     handleError(api, nodeType, address, "Timeout");
                     continue;
                 }
-                String resultString = convertStreamToString(pr.getInputStream());
-                log.info(resultString.toString());
+                String resultString = convertStreamToString(pr.getInputStream()).replace("\n", " | ");
+                if(!Strings.isNullOrEmpty(resultString)) {
+                    log.info(resultString);
+                }
                 String[] splitResult = resultString.split(",");
                 if (splitResult.length != 4) {
                     handleError(api, nodeType, address, "Could not parse node output:" + resultString);
@@ -237,7 +238,7 @@ public class Uptime {
         if (NodeType.BTC_NODE.equals(nodeType) && node.hasError() && node.isFirstTimeOffender) {
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " failed twice", appendBadNodesSizeToString(reason));
 
-        } else if (node.hasError()) {
+        } else if (!NodeType.BTC_NODE.equals(nodeType)) {
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address, appendBadNodesSizeToString(reason));
         }
         node.addError(reason);
