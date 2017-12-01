@@ -185,7 +185,7 @@ public class Monitoring {
                     continue;
                 }
                 String resultString = convertStreamToString(pr.getInputStream()).replace("\n", " | ");
-                String resultStringNoNewlines = resultString.replace("\n", " | ");
+                String resultStringNoNewlines = new String(resultString).replace("\n", " | ");
                 if(!Strings.isNullOrEmpty(resultStringNoNewlines)) {
                     log.info(resultStringNoNewlines);
                 }
