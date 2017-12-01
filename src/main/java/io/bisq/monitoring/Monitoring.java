@@ -184,7 +184,7 @@ public class Monitoring {
                     handleError(api, nodeType, address, "Timeout");
                     continue;
                 }
-                String resultString = convertStreamToString(pr.getInputStream()).replace("\n", " | ");
+                String resultString = convertStreamToString(pr.getInputStream());
                 String resultStringNoNewlines = new String(resultString).replace("\n", " | ");
                 if(!Strings.isNullOrEmpty(resultStringNoNewlines)) {
                     log.info(resultStringNoNewlines);
