@@ -1,4 +1,4 @@
-package io.bisq.uptime;
+package io.bisq.monitoring;
 
 import lombok.extern.slf4j.Slf4j;
 import net.gpedro.integrations.slack.SlackApi;
@@ -11,7 +11,7 @@ import net.gpedro.integrations.slack.SlackMessage;
 public class SlackTool {
 
     public static void send(SlackApi api, String username, String body) {
-        if(Uptime.isSlackEnabled) {
+        if(Monitoring.isSlackEnabled) {
             try {
                 api.call(new SlackMessage(username, body));
             } catch (Throwable e) {

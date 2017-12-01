@@ -3,11 +3,11 @@ version: '2'
 # There should be an environment variable called SLACK_URL
 
 services:
-    uptime:
+    monitoring:
         build:
             context: .
-        image: bisq:uptime
-        container_name: uptime
+        image: bisq:monitoring
+        container_name: monitoring
         ports:
           - 8080:8080
         environment:
