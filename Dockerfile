@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat \
     python-pip && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/mrosseel/bisq-uptime.git
-WORKDIR /bisq-uptime/
+RUN git clone https://github.com/mrosseel/bisq-monitoring.git
+WORKDIR /bisq-monitoring/
 #RUN git checkout Development
 RUN mvn clean install
 
@@ -28,7 +28,7 @@ COPY start_tor.sh ./
 RUN  chmod +x *.sh
 WORKDIR ./src/main/python
 RUN pip install --upgrade setuptools && pip install -r requirements.txt
-WORKDIR /bisq-uptime/
+WORKDIR /bisq-monitoring/
 
-CMD ./start_tor.sh && java -cp ./target/bisq-uptime*.jar io.bisq.uptime.Uptime --useSlack true --slackPriceSecret ${SLACK_PRICE_URL}  --slackSeedSecret ${SLACK_SEED_URL}  --slackBTCSecret ${SLACK_BTC_URL}
+CMD ./start_tor.sh && java -cp ./target/bisq-monitoring*.jar io.bisq.monitoring.Monitoring --useSlack true --slackPriceSecret ${SLACK_PRICE_URL}  --slackSeedSecret ${SLACK_SEED_URL}  --slackBTCSecret ${SLACK_BTC_URL}
 #CMD tail -f /dev/null

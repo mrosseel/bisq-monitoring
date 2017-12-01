@@ -1,9 +1,9 @@
-# Bisq uptime checker
+# Bisq monitoring checker
 
 # Docker deployment
 
 * check out this repository on the target server
-* obtain the Slack channel webhook on which you want to post uptime messages
+* obtain the Slack channel webhook on which you want to post monitoring messages
 * Start monitoring: ```SLACK_URL="http://YOUR_SECRET_URL docker-compose up -d```
 * inspect output via ```docker-compose logs -f```
 

@@ -1,4 +1,4 @@
-package io.bisq.uptime;
+package io.bisq.monitoring;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

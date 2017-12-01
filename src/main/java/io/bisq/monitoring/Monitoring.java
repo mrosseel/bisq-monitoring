@@ -1,4 +1,4 @@
-package io.bisq.uptime;
+package io.bisq.monitoring;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -24,7 +24,7 @@ import static spark.Spark.port;
 
  */
 @Slf4j
-public class Uptime {
+public class Monitoring {
     private Runtime rt = Runtime.getRuntime();
     private static SlackApi priceApi;
     private static SlackApi seedApi;
@@ -89,7 +89,7 @@ public class Uptime {
     HashMap<String, String> errorNodeMap = new HashMap<>();
     LocalDateTime startTime = LocalDateTime.now();
 
-    public Uptime(String localYamlData) {
+    public Monitoring(String localYamlData) {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         /*
 
@@ -185,12 +185,13 @@ public class Uptime {
                     continue;
                 }
                 String resultString = convertStreamToString(pr.getInputStream()).replace("\n", " | ");
-                if(!Strings.isNullOrEmpty(resultString)) {
-                    log.info(resultString);
+                String resultStringNoNewlines = resultString.replace("\n", " | ");
+                if(!Strings.isNullOrEmpty(resultStringNoNewlines)) {
+                    log.info(resultStringNoNewlines);
                 }
                 String[] splitResult = resultString.split(",");
                 if (splitResult.length != 4) {
-                    handleError(api, nodeType, address, "Could not parse node output:" + resultString);
+                    handleError(api, nodeType, address, "Could not parse node output:" + resultStringNoNewlines);
                     continue;
                 }
                 result.setVersion(splitResult[1]);
@@ -373,17 +374,17 @@ public class Uptime {
             log.info("Using local yaml file: {}", localYamlData);
         }
 
-        Uptime uptime = new Uptime(localYamlData);
+        Monitoring monitoring = new Monitoring(localYamlData);
 
         log.info("Startup. All nodes in error will be shown fully in this first run.");
         int counter = 0;
         boolean isReportingLoop;
 
         // add all nodes to the node info list
-        uptime.allNodes.addAll(onionPriceNodes.stream().map(s -> new NodeDetail(s, NodeType.PRICE_NODE)).collect(Collectors.toList()));
-        uptime.allNodes.addAll(clearnetBitcoinNodes.stream().map(s -> new NodeDetail(s, NodeType.BTC_NODE)).collect(Collectors.toList()));
-        uptime.allNodes.addAll(onionBitcoinNodes.stream().map(s -> new NodeDetail(s, NodeType.BTC_NODE)).collect(Collectors.toList()));
-        uptime.allNodes.addAll(seedNodes.stream().map(s -> new NodeDetail(s, NodeType.SEED_NODE)).collect(Collectors.toList()));
+        monitoring.allNodes.addAll(onionPriceNodes.stream().map(s -> new NodeDetail(s, NodeType.PRICE_NODE)).collect(Collectors.toList()));
+        monitoring.allNodes.addAll(clearnetBitcoinNodes.stream().map(s -> new NodeDetail(s, NodeType.BTC_NODE)).collect(Collectors.toList()));
+        monitoring.allNodes.addAll(onionBitcoinNodes.stream().map(s -> new NodeDetail(s, NodeType.BTC_NODE)).collect(Collectors.toList()));
+        monitoring.allNodes.addAll(seedNodes.stream().map(s -> new NodeDetail(s, NodeType.SEED_NODE)).collect(Collectors.toList()));
 
         try {
             Thread.sleep(10000); //wait 10 seconds so that tor is started
@@ -392,24 +393,24 @@ public class Uptime {
         }
         port(8080);
         get("/ping", (req, res) -> "pong");
-        get("/status", (req, res) -> uptime.printAllNodesReportHtml());
+        get("/status", (req, res) -> monitoring.printAllNodesReportHtml());
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
 
         while (true) {
             try {
                 log.info("Starting checks...");
-                uptime.checkPriceNodes(priceApi, onionPriceNodes, true);
-                uptime.checkClearnetBitcoinNodes(btcApi, clearnetBitcoinNodes);
-                uptime.checkOnionBitcoinNodes(btcApi, onionBitcoinNodes);
-                uptime.checkSeedNodes(seedApi, seedNodes);
+                monitoring.checkPriceNodes(priceApi, onionPriceNodes, true);
+                monitoring.checkClearnetBitcoinNodes(btcApi, clearnetBitcoinNodes);
+                monitoring.checkOnionBitcoinNodes(btcApi, onionBitcoinNodes);
+                monitoring.checkSeedNodes(seedApi, seedNodes);
                 log.info("Stopping checks, now sleeping for {} seconds.", LOOP_SLEEP_SECONDS);
 
                 /*
                 // prepare reporting
                 isReportingLoop = (counter % REPORTING_NR_LOOPS == 0);
                 if (isReportingLoop) {
-                    String errorNodeOutputString = uptime.printAllNodesReport();
+                    String errorNodeOutputString = monitoring.printAllNodesReport();
                     if (!errorNodeOutputString.isEmpty()) {
                         log.info("Nodes in error: \n{}", errorNodeOutputString);
                         SlackTool.send(api, NodeType.MONITORING_NODE.getPrettyName(), errorNodeOutputString);
