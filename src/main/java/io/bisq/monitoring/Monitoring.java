@@ -1,15 +1,28 @@
 package io.bisq.monitoring;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.util.concurrent.ListenableFuture;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 import net.gpedro.integrations.slack.SlackApi;
+import org.berndpruenster.netlayer.tor.NativeTor;
+import org.berndpruenster.netlayer.tor.Tor;
+import org.berndpruenster.netlayer.tor.TorCtlException;
+import org.bitcoinj.core.Context;
+import org.bitcoinj.core.Peer;
+import org.bitcoinj.core.PeerAddress;
+import org.bitcoinj.core.VersionMessage;
+import org.bitcoinj.net.BlockingClient;
+import org.bitcoinj.params.MainNetParams;
+import org.jetbrains.annotations.Nullable;
 
+import javax.net.SocketFactory;
+import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.SocketAddress;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +49,7 @@ public class Monitoring {
     public static final String SLACK_SEED_SECRET = "slackSeedSecret";
     public static final String SLACK_BTC_SECRET = "slackBTCSecret";
     public static final String LOCAL_YAML = "localYaml";
+    public static final String TEST = "test";
 
     // CMD line argument DATA
     public static boolean isSlackEnabled = false;
@@ -43,6 +57,7 @@ public class Monitoring {
     public static String slackSeedSecretData = null;
     public static String slackBTCSecretData = null;
     public static String localYamlData = null;
+    public static boolean isTest = false;
 
 
     public static String PRICE_NODE_VERSION = "0.6.0";
@@ -88,10 +103,13 @@ public class Monitoring {
     Set<NodeDetail> allNodes = new HashSet<>();
     HashMap<String, String> errorNodeMap = new HashMap<>();
     LocalDateTime startTime = LocalDateTime.now();
+    // one tor is started, this is filled in
+    ProxySocketFactory proxySocketFactory;
 
     public Monitoring(String localYamlData) {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         /*
+
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
         try {
             NodeConfig nodeConfig = mapper.readValue(new File(localYamlData), NodeConfig.class);
@@ -124,12 +142,62 @@ public class Monitoring {
         checkBitcoinNode(api, onionAddresses, true);
     }
 
+    public void checkBitcoinNode(SlackApi api, List<String> nodeAddresses, boolean isTor) {
+        int CONNECT_TIMEOUT_MSEC = 60 * 1000;  // same value used in bitcoinj.
+        MainNetParams params = MainNetParams.get();
+        Context context = new Context(params);
+
+        for (String address : nodeAddresses) {
+            try {
+                PeerAddress remoteAddress = new PeerAddress(address, 8333);
+                Peer peer = new Peer(params, new VersionMessage(params, 100000), remoteAddress, null);
+                BlockingClient blockingClient =
+                        new BlockingClient(isTor ? remoteAddress.toSocketAddress() : new InetSocketAddress(address, 8333),
+                                peer, CONNECT_TIMEOUT_MSEC, isTor ? proxySocketFactory : SocketFactory.getDefault(),
+                                null);
+                ListenableFuture<SocketAddress> connectFuture = blockingClient.getConnectFuture();
+                SocketAddress socketAddress = connectFuture.get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
+                Peer remotePeer = peer.getVersionHandshakeFuture().get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
+                VersionMessage versionMessage = remotePeer.getPeerVersionMessage();
+                if(!verifyBtcNodeVersion(versionMessage)) {
+                    handleError(api, NodeType.BTC_NODE, address, "BTC Node has wrong version message: " + versionMessage.toString());
+                }
+                markAsGoodNode(api, NodeType.BTC_NODE, address);
+            } catch (Throwable e) {
+                log.error("Failed {}", e);
+                handleError(api, NodeType.BTC_NODE, address, e.getMessage());
+                continue;
+            }
+        }
+    }
+
+    private boolean verifyBtcNodeVersion(VersionMessage versionMessage) {
+        return versionMessage.localServices == 13 && versionMessage.subVer.contains("0.15");
+    }
+
+    @Nullable
+    private boolean startTor() {
+        InetSocketAddress torProxyAddress = null;
+        try {
+            Tor.setDefault(new NativeTor(new File("/Users/mike/tor"), null));
+            torProxyAddress = new InetSocketAddress("localhost", Tor.getDefault().getProxy().getPort());
+        } catch (TorCtlException e) {
+            log.error("Error creating Tor Node", e);
+            return false;
+        }
+        Proxy proxy = new Proxy(Proxy.Type.SOCKS, torProxyAddress);
+        this.proxySocketFactory = new ProxySocketFactory(proxy);
+        return true;
+    }
+
+    private void stopTor() {
+        Tor.getDefault().shutdown();
+        this.proxySocketFactory = null;
+    }
+
     public void checkPriceNodes(SlackApi api, List<String> ipAddresses, boolean overTor) {
         NodeType nodeType = NodeType.PRICE_NODE;
         for (String address : ipAddresses) {
-            BitcoinNodeResult result = new BitcoinNodeResult();
-            result.setAddress(address);
-
             ProcessResult getFeesResult = executeProcess((overTor ? "torify " : "") + "curl " + address + (overTor ? "" : "8080") + "/getFees", PROCESS_TIMEOUT_SECONDS);
             if (getFeesResult.getError() != null) {
                 handleError(api, nodeType, address, getFeesResult.getError());
@@ -171,42 +239,6 @@ public class Monitoring {
         }
     }
 
-    private void checkBitcoinNode(SlackApi api, List<String> ipAddresses, boolean overTor) {
-        NodeType nodeType = NodeType.BTC_NODE;
-        for (String address : ipAddresses) {
-            BitcoinNodeResult result = new BitcoinNodeResult();
-            result.setAddress(address);
-
-            try {
-                Process pr = rt.exec((overTor ? "torify " : "") + "python ./src/main/python/protocol.py " + address);
-                boolean noTimeout = pr.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (!noTimeout) {
-                    handleError(api, nodeType, address, "Timeout");
-                    continue;
-                }
-                String resultString = convertStreamToString(pr.getInputStream());
-                String resultStringNoNewlines = new String(resultString).replace("\n", "");
-                if(!Strings.isNullOrEmpty(resultStringNoNewlines)) {
-                    log.info(resultStringNoNewlines);
-                }
-                String[] splitResult = resultString.split(",");
-                if (splitResult.length != 4) {
-                    handleError(api, nodeType, address, "Could not parse node output:" + resultStringNoNewlines);
-                    continue;
-                }
-                result.setVersion(splitResult[1]);
-                result.setHeight(Long.parseLong(splitResult[2]));
-                result.setServices(Integer.parseInt(splitResult[3].trim()));
-            } catch (IOException e) {
-                handleError(api, nodeType, address, e.getMessage());
-                continue;
-            } catch (InterruptedException e) {
-                handleError(api, nodeType, address, e.getMessage());
-                continue;
-            }
-            markAsGoodNode(api, nodeType, address);
-        }
-    }
 
     private ProcessResult executeProcess(String command, int timeoutSeconds) {
         Process pr = null;
@@ -247,10 +279,10 @@ public class Monitoring {
 
     private void markAsGoodNode(SlackApi api, NodeType nodeType, String address) {
         Optional<NodeDetail> any = findNodeInfoByAddress(address);
-        if(NodeType.BTC_NODE.equals(nodeType) && any.get().hasError() && any.get().isFirstTimeOffender) {
+        if (NodeType.BTC_NODE.equals(nodeType) && any.get().hasError() && any.get().isFirstTimeOffender) {
             // no slack logging
             log.info("Fixed: {} {} (first time offender)", nodeType.getPrettyName(), address);
-        }else if (any.isPresent() && any.get().hasError()) {
+        } else if (any.isPresent() && any.get().hasError()) {
             any.get().clearError();
             log.info("Fixed: {} {}", nodeType.getPrettyName(), address);
             SlackTool.send(api, "Fixed: " + nodeType.getPrettyName() + " " + address, appendBadNodesSizeToString("No longer in error"));
@@ -296,7 +328,7 @@ public class Monitoring {
         builder.append("Nodes in error: <b>" + errorCount + "</b><br/>Monitoring node started at: " + startTime.toString() +
                 "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Error?</th><th align=\"left\">Nr. of errors</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
                 allNodes.stream().sorted().map(nodeDetail -> "<tr>"
-                        +" <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
+                        + " <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
                         + "<td>" + nodeDetail.getAddress() + "</td>"
                         + "<td>" + (nodeDetail.hasError() ? "<b>Yes</b>" : "") + "</td>"
                         + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
@@ -330,6 +362,7 @@ public class Monitoring {
                 .withOptionalArg().ofType(String.class);
         parser.accepts(LOCAL_YAML, "Override the default nodes.yaml file with a local file")
                 .withRequiredArg().ofType(String.class);
+        parser.accepts(TEST, "do a test run of the app, without actually checking anything");
 
         OptionSet options;
         try {
@@ -347,30 +380,31 @@ public class Monitoring {
         slackPriceSecretData = (options.has(SLACK_PRICE_SECRET) && options.hasArgument(SLACK_PRICE_SECRET)) ? (String) options.valueOf(SLACK_PRICE_SECRET) : null;
         slackSeedSecretData = (options.has(SLACK_SEED_SECRET) && options.hasArgument(SLACK_SEED_SECRET)) ? (String) options.valueOf(SLACK_SEED_SECRET) : null;
         slackBTCSecretData = (options.has(SLACK_BTC_SECRET) && options.hasArgument(SLACK_BTC_SECRET)) ? (String) options.valueOf(SLACK_BTC_SECRET) : null;
+        isTest = (options.has(TEST));
 
         if (isSlackEnabled) {
             log.info("Slack enabled");
-            if(slackPriceSecretData != null) {
+            if (slackPriceSecretData != null) {
                 log.info("Using Price slack secret: {}", slackPriceSecretData);
                 priceApi = new SlackApi(slackPriceSecretData);
             }
-            if(slackSeedSecretData != null) {
+            if (slackSeedSecretData != null) {
                 log.info("Using Seed slack secret: {}", slackSeedSecretData);
                 seedApi = new SlackApi(slackSeedSecretData);
             }
-            if(slackBTCSecretData != null) {
+            if (slackBTCSecretData != null) {
                 log.info("Using BTC full node slack secret: {}", slackBTCSecretData);
                 btcApi = new SlackApi(slackBTCSecretData);
             }
 
-            if(priceApi == null && seedApi == null && btcApi == null) {
+            if (priceApi == null && seedApi == null && btcApi == null) {
                 log.info("Slack disabled due to missing slack secret");
                 isSlackEnabled = false;
             }
         }
 
         localYamlData = (options.has(LOCAL_YAML) && options.hasArgument(LOCAL_YAML)) ? (String) options.valueOf(LOCAL_YAML) : null;
-        if(localYamlData != null) {
+        if (localYamlData != null) {
             log.info("Using local yaml file: {}", localYamlData);
         }
 
@@ -386,10 +420,12 @@ public class Monitoring {
         monitoring.allNodes.addAll(onionBitcoinNodes.stream().map(s -> new NodeDetail(s, NodeType.BTC_NODE)).collect(Collectors.toList()));
         monitoring.allNodes.addAll(seedNodes.stream().map(s -> new NodeDetail(s, NodeType.SEED_NODE)).collect(Collectors.toList()));
 
-        try {
-            Thread.sleep(10000); //wait 10 seconds so that tor is started
-        } catch (InterruptedException e) {
-            log.error("Failed during initial sleep", e);
+        if (!isTest) {
+            try {
+                Thread.sleep(10000); //wait 10 seconds so that tor is started
+            } catch (InterruptedException e) {
+                log.error("Failed during initial sleep", e);
+            }
         }
         port(8080);
         get("/ping", (req, res) -> "pong");
@@ -397,29 +433,20 @@ public class Monitoring {
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
 
+        if (isTest) {
+            log.info("Tests skipped due to --test flag");
+            return;
+        }
+        monitoring.startTor();
+
         while (true) {
             try {
                 log.info("Starting checks...");
                 monitoring.checkPriceNodes(priceApi, onionPriceNodes, true);
+                monitoring.checkSeedNodes(seedApi, seedNodes);
                 monitoring.checkClearnetBitcoinNodes(btcApi, clearnetBitcoinNodes);
                 monitoring.checkOnionBitcoinNodes(btcApi, onionBitcoinNodes);
-                monitoring.checkSeedNodes(seedApi, seedNodes);
                 log.info("Stopping checks, now sleeping for {} seconds.", LOOP_SLEEP_SECONDS);
-
-                /*
-                // prepare reporting
-                isReportingLoop = (counter % REPORTING_NR_LOOPS == 0);
-                if (isReportingLoop) {
-                    String errorNodeOutputString = monitoring.printAllNodesReport();
-                    if (!errorNodeOutputString.isEmpty()) {
-                        log.info("Nodes in error: \n{}", errorNodeOutputString);
-                        SlackTool.send(api, NodeType.MONITORING_NODE.getPrettyName(), errorNodeOutputString);
-                    } else {
-                        log.info("No errors");
-                        SlackTool.send(api, NodeType.MONITORING_NODE.getPrettyName(), "No errors");
-                    }
-                }
-                */
             } catch (Throwable e) {
                 log.error("Could not send message to slack", e);
             }
@@ -431,4 +458,5 @@ public class Monitoring {
             }
         }
     }
+
 }

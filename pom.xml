@@ -105,6 +105,23 @@
             <version>3.6</version>
         </dependency>
         <!-- -->
+        <dependency>
+            <groupId>com.github.bisq-network.bitcoinj</groupId>
+            <artifactId>bitcoinj-core</artifactId>
+            <version>58de2b53</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.JesusMcCloud.netlayer</groupId>
+            <artifactId>tor.native</artifactId>
+            <version>e7195748</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
 
         <!-- Add http server to monitoring -->
         <dependency>
