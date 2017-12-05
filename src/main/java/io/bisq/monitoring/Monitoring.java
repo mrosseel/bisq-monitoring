@@ -320,9 +320,7 @@ public class Monitoring {
 
     public String printAllNodesReportHtml() {
         long errorCount = getErrorCount();
-        if (errorCount == 0) {
-            return "";
-        }
+
         StringBuilder builder = new StringBuilder();
         builder.append("<html><body><h1>");
         builder.append("Nodes in error: <b>" + errorCount + "</b><br/>Monitoring node started at: " + startTime.toString() +
@@ -435,7 +433,13 @@ public class Monitoring {
 
         if (isTest) {
             log.info("Tests skipped due to --test flag");
-            return;
+            while(true) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
         monitoring.startTor();
 
