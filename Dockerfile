@@ -11,13 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     fakeroot \
     sudo \
-    python \
     tor \
     torsocks \
-    python-dev \
     build-essential \
-    netcat \
-    python-pip && rm -rf /var/lib/apt/lists/*
+    netcat && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/mrosseel/bisq-monitoring.git
 WORKDIR /bisq-monitoring/
@@ -26,8 +23,6 @@ RUN mvn clean install
 
 COPY start_tor.sh ./
 RUN  chmod +x *.sh
-WORKDIR ./src/main/python
-RUN pip install --upgrade setuptools && pip install -r requirements.txt
 WORKDIR /bisq-monitoring/
 
 CMD ./start_tor.sh && java -cp ./target/bisq-monitoring*.jar io.bisq.monitoring.Monitoring --useSlack true --slackPriceSecret ${SLACK_PRICE_URL}  --slackSeedSecret ${SLACK_SEED_URL}  --slackBTCSecret ${SLACK_BTC_URL}
