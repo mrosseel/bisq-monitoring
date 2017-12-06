@@ -25,7 +25,9 @@ import java.net.Proxy;
 import java.net.SocketAddress;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -159,13 +161,27 @@ public class Monitoring {
                 SocketAddress socketAddress = connectFuture.get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
                 Peer remotePeer = peer.getVersionHandshakeFuture().get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
                 VersionMessage versionMessage = remotePeer.getPeerVersionMessage();
-                if(!verifyBtcNodeVersion(versionMessage)) {
+                if (!verifyBtcNodeVersion(versionMessage)) {
                     handleError(api, NodeType.BTC_NODE, address, "BTC Node has wrong version message: " + versionMessage.toString());
                 }
                 markAsGoodNode(api, NodeType.BTC_NODE, address);
-            } catch (Throwable e) {
-                log.error("Failed {}", e);
-                handleError(api, NodeType.BTC_NODE, address, e.getMessage());
+            } catch (InterruptedException e) {
+                log.error("getVersionHandshakeFuture failed {}", e);
+                handleError(api, NodeType.BTC_NODE, address, "getVersionHandshakeFuture() was interrupted: " + e.getMessage());
+                continue;
+            } catch (ExecutionException e) {
+                log.error("getVersionHandshakeFuture failed {}", e);
+                handleError(api, NodeType.BTC_NODE, address, "getVersionHandshakeFuture() has executionException: " + e.getMessage());
+                continue;
+            } catch (IOException e) {
+                log.error("BlockingClient failed {}", e);
+                handleError(api, NodeType.BTC_NODE, address, "BlockingClient failed: " + e.getMessage());
+                continue;
+            } catch (TimeoutException e) {
+                log.error("getVersionHandshakeFuture failed {}", e);
+                handleError(api, NodeType.BTC_NODE, address,
+                        "getVersionHandshakeFuture() has timed out after "
+                                + CONNECT_TIMEOUT_MSEC/1000.0 + " seconds with error: " + e.getMessage());
                 continue;
             }
         }
@@ -433,7 +449,7 @@ public class Monitoring {
 
         if (isTest) {
             log.info("Tests skipped due to --test flag");
-            while(true) {
+            while (true) {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
