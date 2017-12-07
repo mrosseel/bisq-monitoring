@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 public class NodeDetailTest {
     @Test
     public void addError() throws Exception {
-        NodeDetail nodeDetail = new NodeDetail("123address", NodeType.SEED_NODE);
+        NodeDetail nodeDetail = new NodeDetail("123address", 8000, "@me", NodeType.SEED_NODE, true);
 
         assertFalse(nodeDetail.hasError());
         assertEquals(0, nodeDetail.getErrorMinutesSinceStart());

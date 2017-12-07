@@ -78,7 +78,8 @@
                         </filter>
                     </filters>
                     <!-- Additional configuration. -->
-                </configuration>                <executions>
+                </configuration>
+                <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
@@ -113,6 +114,7 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.6</version>
         </dependency>
+
         <!-- -->
         <dependency>
             <groupId>com.github.bisq-network.bitcoinj</groupId>

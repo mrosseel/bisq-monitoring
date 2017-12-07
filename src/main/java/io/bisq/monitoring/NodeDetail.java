@@ -18,6 +18,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class NodeDetail implements Comparable<NodeDetail> {
     String address;
+    int port;
+    String owner;
+    boolean isTor;
     NodeType nodeType;
     long nrErrorsSinceStart = 0;
     /** if a  bitcoin full node fails once, this flag is set to true.
@@ -30,9 +33,12 @@ public class NodeDetail implements Comparable<NodeDetail> {
 
     List<String> errorReason = new ArrayList<>();
 
-    public NodeDetail(String address, NodeType nodeType) {
+    public NodeDetail(String address, int port, String owner, NodeType nodeType, boolean isTor) {
         this.address = address;
+        this.port = port;
+        this.owner = owner;
         this.nodeType = nodeType;
+        this.isTor = isTor;
     }
 
     @Override
