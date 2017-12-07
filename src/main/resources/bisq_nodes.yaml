@@ -2,7 +2,7 @@
 pricenodeVersion: "0.6.1"
 pricenodes:
 - address: "ceaanhbvluug4we6.onion"
-  owner: "@mrosseel"
+  owner: "@miker"
 - address: "rb2l2qale2pqzjyo.onion"
   owner: "@sqrrm"
 - address: "xc3nh4juf2hshy7e.onion"
@@ -10,7 +10,7 @@ pricenodes:
 seednodes:
 - address: "5quyxpxheyvzmb2d.onion"
   port: 8000
-  owner: "@mrosseel"
+  owner: "@miker"
 - address: "ef5qnzx6znifo3df.onion"
   port: 8000
   owner: "@alexej996"
@@ -64,6 +64,6 @@ btcnodes:
 - address: "37.221.198.57"
   owner: "@jhoenicke"
 - address: "138.68.117.247"
-  owner: "@mrosseel"
+  owner: "@miker"
 - address: "mxdtrjhe2yfsx3pg.onion"
-  owner: "@mrosseel"
+  owner: "@miker"
