@@ -186,7 +186,7 @@ public class Monitoring {
         NodeType nodeType = NodeType.SEED_NODE;
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.SEED_NODE.equals(node.getNodeType())).collect(Collectors.toList());
         for (NodeDetail node : nodes) {
-            ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress(), PROCESS_TIMEOUT_SECONDS);
+            ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress()+":"+node.getPort(), PROCESS_TIMEOUT_SECONDS);
             if (getFeesResult.getError() != null) {
                 handleError(api, nodeType, node.getAddress(), node.getOwner(), getFeesResult.getError());
                 continue;
