@@ -24,8 +24,14 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.SocketAddress;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -72,9 +78,8 @@ public class Monitoring {
     // one tor is started, this is filled in
     ProxySocketFactory proxySocketFactory;
 
-    public Monitoring(String localYamlData) {
-        NodeYamlReader reader = new NodeYamlReader(localYamlData);
-        this.nodeConfig = reader.getNodeConfig();
+    public Monitoring(NodeConfig nodeConfig) {
+        this.nodeConfig = nodeConfig;
     }
 
     public void checkBitcoinNode(SlackApi api) {
@@ -218,13 +223,14 @@ public class Monitoring {
     }
 
     public void handleError(SlackApi api, NodeType nodeType, String address, String owner, String reason) {
-        log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
         NodeDetail node = getNode(address);
 
         if (NodeType.BTC_NODE.equals(nodeType) && node.hasError() && node.isFirstTimeOffender) { // btc node with error and that error was its first error, we log
+            log.error("Error in {} {} ({}) - failed twice, reason: {}", nodeType.toString(), address, owner, reason);
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + "(" + owner + ") failed twice", appendBadNodesSizeToString(reason));
 
         } else if (!NodeType.BTC_NODE.equals(nodeType) && !node.hasError()) { // first time node has error, we log
+            log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + "(" + owner + ")", appendBadNodesSizeToString(reason));
         }
         node.addError(reason);
@@ -355,14 +361,22 @@ public class Monitoring {
         }
 
         localYamlData = (options.has(LOCAL_YAML) && options.hasArgument(LOCAL_YAML)) ? (String) options.valueOf(LOCAL_YAML) : null;
+        String yamlContent = "";
         if (localYamlData != null) {
             log.info("Using local yaml file: {}", localYamlData);
+            yamlContent = new String(Files.readAllBytes(Paths.get(localYamlData)));
         } else {
-            log.error("no local yaml file provided");
-            return;
+            log.info("Using yaml file from classpath");
+            try {
+                yamlContent = new String(Files.readAllBytes(Paths.get(Monitoring.class.getResource("/bisq_nodes.yaml").toURI())));
+            } catch (URISyntaxException e) {
+                log.error("Erorr reading nodes yaml config from classpath", e);
+                return;
+            }
         }
+        NodeYamlReader reader = new NodeYamlReader(yamlContent);
 
-        Monitoring monitoring = new Monitoring(localYamlData);
+        Monitoring monitoring = new Monitoring(reader.getNodeConfig());
 
         log.info("Startup. All nodes in error will be shown fully in this first run.");
         int counter = 0;
