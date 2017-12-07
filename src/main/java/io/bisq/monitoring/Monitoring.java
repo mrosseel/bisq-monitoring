@@ -160,18 +160,18 @@ public class Monitoring {
             }
             boolean correct = getFeesResult.getResult().contains("btcTxFee");
             if (!correct) {
-                handleError(api, nodeType, node.getAddress(), node.getAddress(), "Result does not contain expected keyword: " + getFeesResult.getResult());
+                handleError(api, nodeType, node.getAddress(), node.getOwner(), "Result does not contain expected keyword: " + getFeesResult.getResult());
                 continue;
             }
 
             ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", PROCESS_TIMEOUT_SECONDS);
             if (getVersionResult.getError() != null) {
-                handleError(api, nodeType, node.getAddress(), node.getAddress(), getVersionResult.getError());
+                handleError(api, nodeType, node.getAddress(), node.getOwner(), getVersionResult.getError());
                 continue;
             }
             correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
             if (!correct) {
-                handleError(api, nodeType, node.getAddress(), node.getAddress(), "Incorrect version:" + getVersionResult.getResult());
+                handleError(api, nodeType, node.getAddress(), node.getOwner(), "Incorrect version:" + getVersionResult.getResult());
                 continue;
             }
 
@@ -305,6 +305,25 @@ public class Monitoring {
         return String.format(formatString, s);
     }
 
+
+    public static String inputStreamToString(InputStream is) throws IOException {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+            return br.lines().collect(Collectors.joining(System.lineSeparator()));
+        }
+    }
+
+    private static List<NodeDetail> getSeednodesFromConfig(Monitoring monitoring) {
+        return monitoring.getNodeConfig().getSeednodes().stream().map(s -> new NodeDetail(s.getAddress(), s.getPort(), s.getOwner(), NodeType.SEED_NODE, s.isTor())).collect(Collectors.toList());
+    }
+
+    private static List<NodeDetail> getBtcNodesFromConfig(Monitoring monitoring) {
+        return monitoring.getNodeConfig().getBtcnodes().stream().map(s -> new NodeDetail(s.getAddress(), 8333, s.getOwner(), NodeType.BTC_NODE, s.isTor())).collect(Collectors.toList());
+    }
+
+    private static List<NodeDetail> getPricenodesFromConfig(Monitoring monitoring) {
+        return monitoring.getNodeConfig().getPricenodes().stream().map(s -> new NodeDetail(s.getAddress(), 8080, s.getOwner(), NodeType.PRICE_NODE, s.isTor())).collect(Collectors.toList());
+    }
+
     public static void main(String[] args) throws IOException {
         OptionParser parser = new OptionParser();
         parser.allowsUnrecognizedOptions();
@@ -423,24 +442,6 @@ public class Monitoring {
                 log.error("Error during sleep", e);
             }
         }
-    }
-
-    public static String inputStreamToString(InputStream is) throws IOException {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
-            return br.lines().collect(Collectors.joining(System.lineSeparator()));
-        }
-    }
-
-    private static List<NodeDetail> getSeednodesFromConfig(Monitoring monitoring) {
-        return monitoring.getNodeConfig().getSeednodes().stream().map(s -> new NodeDetail(s.getAddress(), s.getPort(), s.getOwner(), NodeType.SEED_NODE, s.isTor())).collect(Collectors.toList());
-    }
-
-    private static List<NodeDetail> getBtcNodesFromConfig(Monitoring monitoring) {
-        return monitoring.getNodeConfig().getBtcnodes().stream().map(s -> new NodeDetail(s.getAddress(), 8333, s.getOwner(), NodeType.BTC_NODE, s.isTor())).collect(Collectors.toList());
-    }
-
-    private static List<NodeDetail> getPricenodesFromConfig(Monitoring monitoring) {
-        return monitoring.getNodeConfig().getPricenodes().stream().map(s -> new NodeDetail(s.getAddress(), 8080, s.getOwner(), NodeType.PRICE_NODE, s.isTor())).collect(Collectors.toList());
     }
 
 }

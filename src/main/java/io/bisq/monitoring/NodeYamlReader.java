@@ -20,7 +20,7 @@ public class NodeYamlReader {
 
         try {
             this.nodeConfig = mapper.readValue(yamlContent, NodeConfig.class);
-            log.debug(ReflectionToStringBuilder.toString(nodeConfig, ToStringStyle.MULTI_LINE_STYLE));
+            log.info(ReflectionToStringBuilder.toString(nodeConfig, ToStringStyle.MULTI_LINE_STYLE));
         } catch (Exception e) {
             log.error("Error while reading yaml file", e);
         }
