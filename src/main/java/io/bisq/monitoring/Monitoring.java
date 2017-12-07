@@ -19,12 +19,10 @@ import org.bitcoinj.params.MainNetParams;
 import org.jetbrains.annotations.Nullable;
 
 import javax.net.SocketFactory;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.SocketAddress;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -283,10 +281,11 @@ public class Monitoring {
         StringBuilder builder = new StringBuilder();
         builder.append("<html><body><h1>");
         builder.append("Nodes in error: <b>" + errorCount + "</b><br/>Monitoring node started at: " + startTime.toString() +
-                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Error?</th><th align=\"left\">Nr. of errors</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
+                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Nr. of errors</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
                 allNodes.stream().sorted().map(nodeDetail -> "<tr>"
                         + " <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
                         + "<td>" + nodeDetail.getAddress() + "</td>"
+                        + "<td>" + nodeDetail.getOwner() + "</td>"
                         + "<td>" + (nodeDetail.hasError() ? "<b>Yes</b>" : "") + "</td>"
                         + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
                         + "<td>" + String.valueOf(nodeDetail.getErrorMinutesSinceStart()) + "</td>"
@@ -367,12 +366,7 @@ public class Monitoring {
             yamlContent = new String(Files.readAllBytes(Paths.get(localYamlData)));
         } else {
             log.info("Using yaml file from classpath");
-            try {
-                yamlContent = new String(Files.readAllBytes(Paths.get(Monitoring.class.getResource("/bisq_nodes.yaml").toURI())));
-            } catch (URISyntaxException e) {
-                log.error("Erorr reading nodes yaml config from classpath", e);
-                return;
-            }
+            yamlContent = inputStreamToString(Monitoring.class.getResourceAsStream("/bisq_nodes.yaml"));
         }
         NodeYamlReader reader = new NodeYamlReader(yamlContent);
 
@@ -428,6 +422,12 @@ public class Monitoring {
             } catch (InterruptedException e) {
                 log.error("Error during sleep", e);
             }
+        }
+    }
+
+    public static String inputStreamToString(InputStream is) throws IOException {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+            return br.lines().collect(Collectors.joining(System.lineSeparator()));
         }
     }
 
