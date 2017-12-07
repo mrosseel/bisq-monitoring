@@ -100,24 +100,24 @@ public class Monitoring {
                 Peer remotePeer = peer.getVersionHandshakeFuture().get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
                 VersionMessage versionMessage = remotePeer.getPeerVersionMessage();
                 if (!verifyBtcNodeVersion(versionMessage)) {
-                    handleError(api, NodeType.BTC_NODE, node.getAddress(), node.getOwner(), "BTC Node has wrong version message: " + versionMessage.toString());
+                    handleError(api, node,"BTC Node has wrong version message: " + versionMessage.toString());
                 }
-                markAsGoodNode(api, NodeType.BTC_NODE, node.getAddress());
+                markAsGoodNode(api, node);
             } catch (InterruptedException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
-                handleError(api, NodeType.BTC_NODE, node.getAddress(), node.getOwner(), "getVersionHandshakeFuture() was interrupted: " + e.getMessage());
+                handleError(api, node,"getVersionHandshakeFuture() was interrupted: " + e.getMessage());
                 continue;
             } catch (ExecutionException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
-                handleError(api, NodeType.BTC_NODE, node.getAddress(), node.getOwner(), "getVersionHandshakeFuture() has executionException: " + e.getMessage());
+                handleError(api, node, "getVersionHandshakeFuture() has executionException: " + e.getMessage());
                 continue;
             } catch (IOException e) {
                 log.debug("BlockingClient failed {}", e);
-                handleError(api, NodeType.BTC_NODE, node.getAddress(), node.getOwner(), "BlockingClient failed: " + e.getMessage());
+                handleError(api, node, "BlockingClient failed: " + e.getMessage());
                 continue;
             } catch (TimeoutException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
-                handleError(api, NodeType.BTC_NODE, node.getAddress(), node.getOwner(),
+                handleError(api, node,
                         "getVersionHandshakeFuture() has timed out after "
                                 + CONNECT_TIMEOUT_MSEC / 1000.0 + " seconds with error: " + e.getMessage());
                 continue;
@@ -155,27 +155,27 @@ public class Monitoring {
         for (NodeDetail node : nodes) {
             ProcessResult getFeesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : node.getPort()) + "/getFees", PROCESS_TIMEOUT_SECONDS);
             if (getFeesResult.getError() != null) {
-                handleError(api, nodeType, node.getAddress(), node.getOwner(), getFeesResult.getError());
+                handleError(api, node, getFeesResult.getError());
                 continue;
             }
             boolean correct = getFeesResult.getResult().contains("btcTxFee");
             if (!correct) {
-                handleError(api, nodeType, node.getAddress(), node.getOwner(), "Result does not contain expected keyword: " + getFeesResult.getResult());
+                handleError(api, node, "Result does not contain expected keyword: " + getFeesResult.getResult());
                 continue;
             }
 
             ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", PROCESS_TIMEOUT_SECONDS);
             if (getVersionResult.getError() != null) {
-                handleError(api, nodeType, node.getAddress(), node.getOwner(), getVersionResult.getError());
+                handleError(api, node, getVersionResult.getError());
                 continue;
             }
             correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
             if (!correct) {
-                handleError(api, nodeType, node.getAddress(), node.getOwner(), "Incorrect version:" + getVersionResult.getResult());
+                handleError(api, node, "Incorrect version:" + getVersionResult.getResult());
                 continue;
             }
 
-            markAsGoodNode(api, nodeType, node.getAddress());
+            markAsGoodNode(api, node);
         }
     }
 
@@ -188,10 +188,10 @@ public class Monitoring {
         for (NodeDetail node : nodes) {
             ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress()+":"+node.getPort(), PROCESS_TIMEOUT_SECONDS);
             if (getFeesResult.getError() != null) {
-                handleError(api, nodeType, node.getAddress(), node.getOwner(), getFeesResult.getError());
+                handleError(api, node, getFeesResult.getError());
                 continue;
             }
-            markAsGoodNode(api, nodeType, node.getAddress());
+            markAsGoodNode(api, node);
         }
     }
 
@@ -220,21 +220,25 @@ public class Monitoring {
         return s.hasNext() ? s.next() : "";
     }
 
-    public void handleError(SlackApi api, NodeType nodeType, String address, String owner, String reason) {
-        NodeDetail node = getNode(address);
+    public void handleError(SlackApi api, NodeDetail node, String reason) {
+        NodeType nodeType = node.getNodeType();
+        String address = node.getAddress();
+        String owner = node.getOwner();
 
         if (NodeType.BTC_NODE.equals(nodeType) && node.hasError() && node.isFirstTimeOffender) { // btc node with error and that error was its first error, we log
             log.error("Error in {} {} ({}) - failed twice, reason: {}", nodeType.toString(), address, owner, reason);
-            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + "(" + owner + ") failed twice", appendBadNodesSizeToString(reason));
+            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ") failed twice", appendBadNodesSizeToString(reason));
 
         } else if (!NodeType.BTC_NODE.equals(nodeType) && !node.hasError()) { // first time node has error, we log
             log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
-            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + "(" + owner + ")", appendBadNodesSizeToString(reason));
+            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ")", appendBadNodesSizeToString(reason));
         }
         node.addError(reason);
     }
 
-    private void markAsGoodNode(SlackApi api, NodeType nodeType, String address) {
+    private void markAsGoodNode(SlackApi api, NodeDetail node) {
+        String address = node.getAddress();
+        NodeType nodeType = node.getNodeType();
         Optional<NodeDetail> any = findNodeInfoByAddress(address);
         if (NodeType.BTC_NODE.equals(nodeType) && any.get().hasError() && any.get().isFirstTimeOffender) {
             // no slack logging
@@ -242,7 +246,7 @@ public class Monitoring {
         } else if (any.isPresent() && any.get().hasError()) {
             any.get().clearError();
             log.info("Fixed: {} {}", nodeType.getPrettyName(), address);
-            SlackTool.send(api, "Fixed: " + nodeType.getPrettyName() + " " + address, appendBadNodesSizeToString("No longer in error"));
+            SlackTool.send(api, "Fixed: " + nodeType.getPrettyName() + " " + address + " (" + node.getOwner() + ")", appendBadNodesSizeToString("No longer in error"));
         }
         log.info("{} with address {} is OK", nodeType.getPrettyName(), address);
     }
