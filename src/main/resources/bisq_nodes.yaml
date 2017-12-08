@@ -8,6 +8,10 @@ pricenodes:
   owner: "@sqrrm"
 - address: "xc3nh4juf2hshy7e.onion"
   owner: "@emzy"
+- address: "44mgyoe2b6oqiytt.onion"
+  owner: "@manfredkarrer"
+- address: "5bmpx76qllutpcyp.onion"
+  owner: "@manfredkarrer"
 seednodes:
 - address: "5quyxpxheyvzmb2d.onion"
   port: 8000

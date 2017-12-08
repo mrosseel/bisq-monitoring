@@ -84,7 +84,7 @@ public class Monitoring {
     public void checkBitcoinNode(SlackApi api) {
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.BTC_NODE.equals(node.getNodeType())).collect(Collectors.toList());
 
-        int CONNECT_TIMEOUT_MSEC = 60 * 1000;  // same value used in bitcoinj.
+        int CONNECT_TIMEOUT_MSEC = processTimeoutSeconds * 1000;
         MainNetParams params = MainNetParams.get();
         Context context = new Context(params);
 
