@@ -69,7 +69,7 @@ public class Monitoring {
     public static boolean isTest = false;
 
     public static int LOOP_SLEEP_SECONDS = 10 * 60;
-    public static int PROCESS_TIMEOUT_SECONDS = 60;
+    public static int processTimeoutSeconds;
 
     Set<NodeDetail> allNodes = new HashSet<>();
     LocalDateTime startTime = LocalDateTime.now();
@@ -78,6 +78,7 @@ public class Monitoring {
 
     public Monitoring(NodeConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
+        this.processTimeoutSeconds = nodeConfig.getNodeTimeoutSecs();
     }
 
     public void checkBitcoinNode(SlackApi api) {
@@ -153,7 +154,7 @@ public class Monitoring {
         NodeType nodeType = NodeType.PRICE_NODE;
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.PRICE_NODE.equals(node.getNodeType())).collect(Collectors.toList());
         for (NodeDetail node : nodes) {
-            ProcessResult getFeesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : node.getPort()) + "/getFees", PROCESS_TIMEOUT_SECONDS);
+            ProcessResult getFeesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : node.getPort()) + "/getFees", processTimeoutSeconds);
             if (getFeesResult.getError() != null) {
                 handleError(api, node, getFeesResult.getError());
                 continue;
@@ -164,7 +165,7 @@ public class Monitoring {
                 continue;
             }
 
-            ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", PROCESS_TIMEOUT_SECONDS);
+            ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
             if (getVersionResult.getError() != null) {
                 handleError(api, node, getVersionResult.getError());
                 continue;
@@ -172,6 +173,17 @@ public class Monitoring {
             correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
             if (!correct) {
                 handleError(api, node, "Incorrect version:" + getVersionResult.getResult());
+                continue;
+            }
+
+            ProcessResult getPricesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getAllMarketPrices", processTimeoutSeconds);
+            if (getPricesResult.getError() != null) {
+                handleError(api, node, getPricesResult.getError());
+                continue;
+            }
+            correct = getPricesResult.getResult().contains("\"currencyCode\": \"BTC\"");
+            if (!correct) {
+                handleError(api, node, "getAllMarketPrices does not contain our test string");
                 continue;
             }
 
@@ -186,7 +198,7 @@ public class Monitoring {
         NodeType nodeType = NodeType.SEED_NODE;
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.SEED_NODE.equals(node.getNodeType())).collect(Collectors.toList());
         for (NodeDetail node : nodes) {
-            ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress()+":"+node.getPort(), PROCESS_TIMEOUT_SECONDS);
+            ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress()+":"+node.getPort(), processTimeoutSeconds);
             if (getFeesResult.getError() != null) {
                 handleError(api, node, getFeesResult.getError());
                 continue;

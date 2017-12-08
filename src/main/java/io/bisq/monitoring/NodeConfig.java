@@ -9,6 +9,7 @@ import java.util.ArrayList;
  */
 @Data
 public class NodeConfig {
+    private int nodeTimeoutSecs;
     private String pricenodeVersion;
     private ArrayList<Node> pricenodes;
     private ArrayList<Node> seednodes;

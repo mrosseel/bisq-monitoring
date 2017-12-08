@@ -1,5 +1,6 @@
 ---
-pricenodeVersion: "0.6.1"
+nodeTimeoutSecs: 120
+pricenodeVersion: "0.6.2"
 pricenodes:
 - address: "ceaanhbvluug4we6.onion"
   owner: "@miker"
