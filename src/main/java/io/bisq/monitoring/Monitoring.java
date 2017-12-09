@@ -246,10 +246,10 @@ public class Monitoring {
         String owner = node.getOwner();
         node.addError(reason);
 
-        if (node.nrErrorsUnreported >= UNREPORTED_ERRORS_THRESHOLD) {
+        if (node.nrErrorsUnreported == UNREPORTED_ERRORS_THRESHOLD) {
             log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
-            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ") failed thrice", appendBadNodesSizeToString(reason));
-        } else {
+            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " failed " + UNREPORTED_ERRORS_THRESHOLD + " times", owner + " " + appendBadNodesSizeToString(reason));
+        } else if(node.nrErrorsUnreported < UNREPORTED_ERRORS_THRESHOLD){
             log.debug("Scheduling a followup check for node: {}", node.toString());
             scheduleFollowupCheck(node, retry);
         }
