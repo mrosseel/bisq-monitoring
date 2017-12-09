@@ -77,7 +77,7 @@ public class Monitoring {
     // one tor is started, this is filled in
     ProxySocketFactory proxySocketFactory;
     private final ScheduledExecutorService scheduler =
-            Executors.newScheduledThreadPool(1);
+            Executors.newScheduledThreadPool(50);
 
     public Monitoring(NodeConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
@@ -90,9 +90,6 @@ public class Monitoring {
         int CONNECT_TIMEOUT_MSEC = processTimeoutSeconds * 1000;
         MainNetParams params = MainNetParams.get();
         Context context = new Context(params);
-
-
-
 
         for (NodeDetail node : nodes) {
             Runnable retry = () -> this.checkBitcoinNode(Lists.newArrayList(node), api);
@@ -108,12 +105,12 @@ public class Monitoring {
                 Peer remotePeer = peer.getVersionHandshakeFuture().get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
                 VersionMessage versionMessage = remotePeer.getPeerVersionMessage();
                 if (!verifyBtcNodeVersion(versionMessage)) {
-                    handleError(api, node,"BTC Node has wrong version message: " + versionMessage.toString(), retry);
+                    handleError(api, node, "BTC Node has wrong version message: " + versionMessage.toString(), retry);
                 }
                 markAsGoodNode(api, node);
             } catch (InterruptedException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
-                handleError(api, node,"getVersionHandshakeFuture() was interrupted: " + e.getMessage(), retry);
+                handleError(api, node, "getVersionHandshakeFuture() was interrupted: " + e.getMessage(), retry);
                 continue;
             } catch (ExecutionException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
@@ -159,7 +156,7 @@ public class Monitoring {
 
     public void scheduleFollowupCheck(NodeDetail node, Runnable retry) {
         Runnable loggingRetry = () -> {
-            log.info("Retrying failed {} with address {}", node.getNodeType(), node.getAddress());
+            log.info("Retrying: {} with address {} and {} unreported fails.", node.getNodeType(), node.getAddress(), node.getNrErrorsUnreported());
             retry.run();
         };
         scheduler.schedule(loggingRetry, 60, SECONDS);
@@ -214,7 +211,7 @@ public class Monitoring {
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.SEED_NODE.equals(node.getNodeType())).collect(Collectors.toList());
         for (NodeDetail node : nodes) {
             Runnable retry = () -> this.checkSeedNodes(Lists.newArrayList(node), api);
-            ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress()+":"+node.getPort(), processTimeoutSeconds);
+            ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress() + ":" + node.getPort(), processTimeoutSeconds);
             if (getFeesResult.getError() != null) {
                 handleError(api, node, getFeesResult.getError(), retry);
                 continue;
@@ -257,6 +254,7 @@ public class Monitoring {
             log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
             SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ") failed thrice", appendBadNodesSizeToString(reason));
         } else {
+            log.debug("Scheduling a followup check for node: {}", node.toString());
             scheduleFollowupCheck(node, retry);
         }
     }
@@ -267,13 +265,13 @@ public class Monitoring {
         Optional<NodeDetail> any = findNodeInfoByAddress(address);
         if (node.nrErrorsUnreported > 0 && node.nrErrorsUnreported < UNREPORTED_ERRORS_THRESHOLD) {
             // no slack logging
-            log.info("Fixed: {} {} (" + node.nrErrorsUnreported + "unreported errors)", nodeType.getPrettyName(), address);
-        } else if(node.nrErrorsUnreported >= UNREPORTED_ERRORS_THRESHOLD) {
+            log.info("Fixed: {} {} (" + node.nrErrorsUnreported + " unreported errors)", nodeType.getPrettyName(), address);
+        } else if (node.nrErrorsUnreported >= UNREPORTED_ERRORS_THRESHOLD) {
             log.info("Fixed: {} {}", nodeType.getPrettyName(), address);
             SlackTool.send(api, "Fixed: " + nodeType.getPrettyName() + " " + address + " (" + node.getOwner() + ")", appendBadNodesSizeToString("No longer in error"));
         }
         any.get().clearError();
-        log.info("{} with address {} is OK", nodeType.getPrettyName(), address);
+        log.info("OK: {} with address {}", nodeType.getPrettyName(), address);
     }
 
     private Optional<NodeDetail> findNodeInfoByAddress(String address) {
