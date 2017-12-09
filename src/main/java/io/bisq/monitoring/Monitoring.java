@@ -84,9 +84,7 @@ public class Monitoring {
         this.processTimeoutSeconds = nodeConfig.getNodeTimeoutSecs();
     }
 
-    public void checkBitcoinNode(List<NodeDetail> btcNodesFromConfig, SlackApi api) {
-        List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.BTC_NODE.equals(node.getNodeType())).collect(Collectors.toList());
-
+    public void checkBitcoinNode(List<NodeDetail> nodes, SlackApi api) {
         int CONNECT_TIMEOUT_MSEC = processTimeoutSeconds * 1000;
         MainNetParams params = MainNetParams.get();
         Context context = new Context(params);
@@ -162,8 +160,7 @@ public class Monitoring {
         scheduler.schedule(loggingRetry, 60, SECONDS);
     }
 
-    public void checkPriceNodes(List<NodeDetail> pricenodesFromConfig, SlackApi api) {
-        List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.PRICE_NODE.equals(node.getNodeType())).collect(Collectors.toList());
+    public void checkPriceNodes(List<NodeDetail> nodes, SlackApi api) {
         for (NodeDetail node : nodes) {
             Runnable retry = () -> this.checkPriceNodes(Lists.newArrayList(node), api);
 
@@ -207,8 +204,7 @@ public class Monitoring {
     /**
      * NOTE: does not work on MAC netcat version
      */
-    public void checkSeedNodes(List<NodeDetail> seednodesFromConfig, SlackApi api) {
-        List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.SEED_NODE.equals(node.getNodeType())).collect(Collectors.toList());
+    public void checkSeedNodes(List<NodeDetail> nodes, SlackApi api) {
         for (NodeDetail node : nodes) {
             Runnable retry = () -> this.checkSeedNodes(Lists.newArrayList(node), api);
             ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress() + ":" + node.getPort(), processTimeoutSeconds);
@@ -308,13 +304,14 @@ public class Monitoring {
         StringBuilder builder = new StringBuilder();
         builder.append("<html><body><h1>");
         builder.append("Nodes in error: <b>" + errorCount + "</b><br/>Monitoring node started at: " + startTime.toString() +
-                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Nr. of errors</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
+                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Nr. of errors</th><th align=\"left\">Unreported errors</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
                 allNodes.stream().sorted().map(nodeDetail -> "<tr>"
                         + " <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
                         + "<td>" + nodeDetail.getAddress() + "</td>"
                         + "<td>" + nodeDetail.getOwner() + "</td>"
                         + "<td>" + (nodeDetail.hasError() ? "<b>Yes</b>" : "") + "</td>"
                         + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
+                        + "<td>" + String.valueOf(nodeDetail.getNrErrorsUnreported()) + "</td>"
                         + "<td>" + String.valueOf(nodeDetail.getErrorMinutesSinceStart()) + "</td>"
                         + "<td>" + ((nodeDetail.getErrorReason().size() > 0) ? " reasons: " + nodeDetail.getReasonListAsString() : "") + "</td>"
                         + "</tr>")
