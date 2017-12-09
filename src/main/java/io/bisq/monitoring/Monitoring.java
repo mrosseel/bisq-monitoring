@@ -1,5 +1,6 @@
 package io.bisq.monitoring;
 
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
@@ -30,13 +31,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static spark.Spark.get;
 import static spark.Spark.port;
 
@@ -69,26 +69,33 @@ public class Monitoring {
     public static boolean isTest = false;
 
     public static int LOOP_SLEEP_SECONDS = 10 * 60;
+    public static int UNREPORTED_ERRORS_THRESHOLD = 3;
     public static int processTimeoutSeconds;
 
     Set<NodeDetail> allNodes = new HashSet<>();
     LocalDateTime startTime = LocalDateTime.now();
     // one tor is started, this is filled in
     ProxySocketFactory proxySocketFactory;
+    private final ScheduledExecutorService scheduler =
+            Executors.newScheduledThreadPool(1);
 
     public Monitoring(NodeConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
         this.processTimeoutSeconds = nodeConfig.getNodeTimeoutSecs();
     }
 
-    public void checkBitcoinNode(SlackApi api) {
+    public void checkBitcoinNode(List<NodeDetail> btcNodesFromConfig, SlackApi api) {
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.BTC_NODE.equals(node.getNodeType())).collect(Collectors.toList());
 
         int CONNECT_TIMEOUT_MSEC = processTimeoutSeconds * 1000;
         MainNetParams params = MainNetParams.get();
         Context context = new Context(params);
 
+
+
+
         for (NodeDetail node : nodes) {
+            Runnable retry = () -> this.checkBitcoinNode(Lists.newArrayList(node), api);
             try {
                 PeerAddress remoteAddress = new PeerAddress(node.getAddress(), node.getPort());
                 Peer peer = new Peer(params, new VersionMessage(params, 100000), remoteAddress, null);
@@ -101,26 +108,26 @@ public class Monitoring {
                 Peer remotePeer = peer.getVersionHandshakeFuture().get(CONNECT_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
                 VersionMessage versionMessage = remotePeer.getPeerVersionMessage();
                 if (!verifyBtcNodeVersion(versionMessage)) {
-                    handleError(api, node,"BTC Node has wrong version message: " + versionMessage.toString());
+                    handleError(api, node,"BTC Node has wrong version message: " + versionMessage.toString(), retry);
                 }
                 markAsGoodNode(api, node);
             } catch (InterruptedException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
-                handleError(api, node,"getVersionHandshakeFuture() was interrupted: " + e.getMessage());
+                handleError(api, node,"getVersionHandshakeFuture() was interrupted: " + e.getMessage(), retry);
                 continue;
             } catch (ExecutionException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
-                handleError(api, node, "getVersionHandshakeFuture() has executionException: " + e.getMessage());
+                handleError(api, node, "getVersionHandshakeFuture() has executionException: " + e.getMessage(), retry);
                 continue;
             } catch (IOException e) {
                 log.debug("BlockingClient failed {}", e);
-                handleError(api, node, "BlockingClient failed: " + e.getMessage());
+                handleError(api, node, "BlockingClient failed: " + e.getMessage(), retry);
                 continue;
             } catch (TimeoutException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
                 handleError(api, node,
                         "getVersionHandshakeFuture() has timed out after "
-                                + CONNECT_TIMEOUT_MSEC / 1000.0 + " seconds with error: " + e.getMessage());
+                                + CONNECT_TIMEOUT_MSEC / 1000.0 + " seconds with error: " + e.getMessage(), retry);
                 continue;
             }
         }
@@ -150,40 +157,49 @@ public class Monitoring {
         this.proxySocketFactory = null;
     }
 
-    public void checkPriceNodes(SlackApi api) {
-        NodeType nodeType = NodeType.PRICE_NODE;
+    public void scheduleFollowupCheck(NodeDetail node, Runnable retry) {
+        Runnable loggingRetry = () -> {
+            log.info("Retrying failed {} with address {}", node.getNodeType(), node.getAddress());
+            retry.run();
+        };
+        scheduler.schedule(loggingRetry, 60, SECONDS);
+    }
+
+    public void checkPriceNodes(List<NodeDetail> pricenodesFromConfig, SlackApi api) {
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.PRICE_NODE.equals(node.getNodeType())).collect(Collectors.toList());
         for (NodeDetail node : nodes) {
+            Runnable retry = () -> this.checkPriceNodes(Lists.newArrayList(node), api);
+
             ProcessResult getFeesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : node.getPort()) + "/getFees", processTimeoutSeconds);
             if (getFeesResult.getError() != null) {
-                handleError(api, node, getFeesResult.getError());
+                handleError(api, node, getFeesResult.getError(), retry);
                 continue;
             }
             boolean correct = getFeesResult.getResult().contains("btcTxFee");
             if (!correct) {
-                handleError(api, node, "Result does not contain expected keyword: " + getFeesResult.getResult());
+                handleError(api, node, "Result does not contain expected keyword: " + getFeesResult.getResult(), retry);
                 continue;
             }
 
             ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
             if (getVersionResult.getError() != null) {
-                handleError(api, node, getVersionResult.getError());
+                handleError(api, node, getVersionResult.getError(), retry);
                 continue;
             }
             correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
             if (!correct) {
-                handleError(api, node, "Incorrect version:" + getVersionResult.getResult());
+                handleError(api, node, "Incorrect version:" + getVersionResult.getResult(), retry);
                 continue;
             }
 
             ProcessResult getPricesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getAllMarketPrices", processTimeoutSeconds);
             if (getPricesResult.getError() != null) {
-                handleError(api, node, getPricesResult.getError());
+                handleError(api, node, getPricesResult.getError(), retry);
                 continue;
             }
             correct = getPricesResult.getResult().contains("\"currencyCode\": \"BTC\"");
             if (!correct) {
-                handleError(api, node, "getAllMarketPrices does not contain our test string");
+                handleError(api, node, "getAllMarketPrices does not contain our test string", retry);
                 continue;
             }
 
@@ -194,19 +210,18 @@ public class Monitoring {
     /**
      * NOTE: does not work on MAC netcat version
      */
-    public void checkSeedNodes(SlackApi api) {
-        NodeType nodeType = NodeType.SEED_NODE;
+    public void checkSeedNodes(List<NodeDetail> seednodesFromConfig, SlackApi api) {
         List<NodeDetail> nodes = allNodes.stream().filter(node -> NodeType.SEED_NODE.equals(node.getNodeType())).collect(Collectors.toList());
         for (NodeDetail node : nodes) {
+            Runnable retry = () -> this.checkSeedNodes(Lists.newArrayList(node), api);
             ProcessResult getFeesResult = executeProcess("./src/main/shell/seednodes.sh " + node.getAddress()+":"+node.getPort(), processTimeoutSeconds);
             if (getFeesResult.getError() != null) {
-                handleError(api, node, getFeesResult.getError());
+                handleError(api, node, getFeesResult.getError(), retry);
                 continue;
             }
             markAsGoodNode(api, node);
         }
     }
-
 
     private ProcessResult executeProcess(String command, int timeoutSeconds) {
         Process pr = null;
@@ -214,7 +229,7 @@ public class Monitoring {
         int exitValue = 0;
         try {
             pr = rt.exec(command);
-            noTimeout = pr.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            noTimeout = pr.waitFor(timeoutSeconds, SECONDS);
         } catch (IOException e) {
             return new ProcessResult("", e.getMessage());
         } catch (InterruptedException e) {
@@ -232,34 +247,32 @@ public class Monitoring {
         return s.hasNext() ? s.next() : "";
     }
 
-    public void handleError(SlackApi api, NodeDetail node, String reason) {
+    public void handleError(SlackApi api, NodeDetail node, String reason, Runnable retry) {
         NodeType nodeType = node.getNodeType();
         String address = node.getAddress();
         String owner = node.getOwner();
-
-        if (NodeType.BTC_NODE.equals(nodeType) && node.hasError() && node.isFirstTimeOffender) { // btc node with error and that error was its first error, we log
-            log.error("Error in {} {} ({}) - failed twice, reason: {}", nodeType.toString(), address, owner, reason);
-            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ") failed twice", appendBadNodesSizeToString(reason));
-
-        } else if (!NodeType.BTC_NODE.equals(nodeType) && !node.hasError()) { // first time node has error, we log
-            log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
-            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ")", appendBadNodesSizeToString(reason));
-        }
         node.addError(reason);
+
+        if (node.nrErrorsUnreported >= UNREPORTED_ERRORS_THRESHOLD) {
+            log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
+            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " (" + owner + ") failed thrice", appendBadNodesSizeToString(reason));
+        } else {
+            scheduleFollowupCheck(node, retry);
+        }
     }
 
     private void markAsGoodNode(SlackApi api, NodeDetail node) {
         String address = node.getAddress();
         NodeType nodeType = node.getNodeType();
         Optional<NodeDetail> any = findNodeInfoByAddress(address);
-        if (NodeType.BTC_NODE.equals(nodeType) && any.get().hasError() && any.get().isFirstTimeOffender) {
+        if (node.nrErrorsUnreported > 0 && node.nrErrorsUnreported < UNREPORTED_ERRORS_THRESHOLD) {
             // no slack logging
-            log.info("Fixed: {} {} (first time offender)", nodeType.getPrettyName(), address);
-        } else if (any.isPresent() && any.get().hasError()) {
-            any.get().clearError();
+            log.info("Fixed: {} {} (" + node.nrErrorsUnreported + "unreported errors)", nodeType.getPrettyName(), address);
+        } else if(node.nrErrorsUnreported >= UNREPORTED_ERRORS_THRESHOLD) {
             log.info("Fixed: {} {}", nodeType.getPrettyName(), address);
             SlackTool.send(api, "Fixed: " + nodeType.getPrettyName() + " " + address + " (" + node.getOwner() + ")", appendBadNodesSizeToString("No longer in error"));
         }
+        any.get().clearError();
         log.info("{} with address {} is OK", nodeType.getPrettyName(), address);
     }
 
@@ -412,9 +425,12 @@ public class Monitoring {
         boolean isReportingLoop;
 
         // add all nodes to the node info list
-        monitoring.allNodes.addAll(getPricenodesFromConfig(monitoring));
-        monitoring.allNodes.addAll(getBtcNodesFromConfig(monitoring));
-        monitoring.allNodes.addAll(getSeednodesFromConfig(monitoring));
+        List<NodeDetail> pricenodesFromConfig = getPricenodesFromConfig(monitoring);
+        List<NodeDetail> btcNodesFromConfig = getBtcNodesFromConfig(monitoring);
+        List<NodeDetail> seednodesFromConfig = getSeednodesFromConfig(monitoring);
+        monitoring.allNodes.addAll(pricenodesFromConfig);
+        monitoring.allNodes.addAll(btcNodesFromConfig);
+        monitoring.allNodes.addAll(seednodesFromConfig);
 
         if (!isTest) {
             try {
@@ -444,9 +460,9 @@ public class Monitoring {
         while (true) {
             try {
                 log.info("Starting checks...");
-                monitoring.checkPriceNodes(priceApi);
-                monitoring.checkSeedNodes(seedApi);
-                monitoring.checkBitcoinNode(btcApi);
+                monitoring.checkPriceNodes(pricenodesFromConfig, priceApi);
+                monitoring.checkSeedNodes(seednodesFromConfig, seedApi);
+                monitoring.checkBitcoinNode(btcNodesFromConfig, btcApi);
                 log.info("Stopping checks, now sleeping for {} seconds.", LOOP_SLEEP_SECONDS);
             } catch (Throwable e) {
                 log.error("Could not send message to slack", e);

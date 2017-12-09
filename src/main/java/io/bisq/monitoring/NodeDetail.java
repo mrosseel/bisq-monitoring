@@ -23,10 +23,7 @@ public class NodeDetail implements Comparable<NodeDetail> {
     boolean isTor;
     NodeType nodeType;
     long nrErrorsSinceStart = 0;
-    /** if a  bitcoin full node fails once, this flag is set to true.
-     * If on the next check it fails again, a slack message is sent and the flag is reset.
-     * If it succeeds the flag is also reset */
-    boolean isFirstTimeOffender = false;
+    long nrErrorsUnreported = 0;
     LocalDateTime startTime = LocalDateTime.now();
     Optional<LocalDateTime> lastErrorTime = Optional.empty();
     long errorMinutesSinceStart = 0;
@@ -65,13 +62,13 @@ public class NodeDetail implements Comparable<NodeDetail> {
 
         if (!hasError()) {
             setLastErrorTime(Optional.of(now));
-            setFirstTimeOffender(true);
+            nrErrorsUnreported++;
             return false;
         } else {
             setErrorMinutesSinceStart(getErrorMinutesSinceStart()
                     + ChronoUnit.MINUTES.between(now, getLastErrorTime().get()));
             setLastErrorTime(Optional.of(now));
-            setFirstTimeOffender(false);
+            nrErrorsUnreported++;
             return true;
         }
     }
@@ -85,6 +82,7 @@ public class NodeDetail implements Comparable<NodeDetail> {
                 + ChronoUnit.MINUTES.between(getLastErrorTime().get(), LocalDateTime.now()));
         setLastErrorTime(Optional.empty());
         getErrorReason().clear();
+        nrErrorsUnreported = 0;
         return true;
     }
 
