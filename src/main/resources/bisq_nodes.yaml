@@ -48,6 +48,8 @@ btcnodes:
   owner: "@emzy"
 - address: "163.172.171.119"
   owner: "@emzy"
+- address: "174.138.35.229:8333"
+  owner: "@ripcurlx"
 - address: "sjyzmwwu6diiit3r.onion"
   owner: "@emzy"
 - address: "r3dsojfhwcm7x7p6.onion"
