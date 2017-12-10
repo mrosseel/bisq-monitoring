@@ -40,7 +40,7 @@ seednodes:
 btcnodes:
 - address: "78.47.61.83"
   owner: "@emzy"
-- address: "poyvpdt762gllauu.onion:8333"
+- address: "poyvpdt762gllauu.onion"
   owner: "@emzy"
 - address: "62.75.210.81"
   owner: "@emzy"
