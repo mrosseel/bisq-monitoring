@@ -259,11 +259,13 @@ public class Monitoring {
         if (node.nrErrorsUnreported > 0 && node.nrErrorsUnreported < UNREPORTED_ERRORS_THRESHOLD) {
             // no slack logging
             log.info("Fixed: {} {} (" + node.nrErrorsUnreported + " unreported errors)", nodeType.getPrettyName(), address);
+            any.get().clearError();
+
         } else if (node.nrErrorsUnreported >= UNREPORTED_ERRORS_THRESHOLD) {
             log.info("Fixed: {} {}", nodeType.getPrettyName(), address);
+            any.get().clearError(); // clear now to get correct count
             SlackTool.send(api, "Fixed: " + nodeType.getPrettyName() + " " + address + " (" + node.getOwner() + ")", appendBadNodesSizeToString("No longer in error"));
         }
-        any.get().clearError();
         log.info("OK: {} with address {}", nodeType.getPrettyName(), address);
     }
 
