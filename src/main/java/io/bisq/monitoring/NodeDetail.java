@@ -82,7 +82,7 @@ public class NodeDetail implements Comparable<NodeDetail> {
                 + ChronoUnit.MINUTES.between(getLastErrorTime().get(), LocalDateTime.now()));
         setLastErrorTime(Optional.empty());
         getErrorReason().clear();
-        nrErrorsUnreported = 0;
+        setNrErrorsUnreported(0);
         return true;
     }
 

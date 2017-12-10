@@ -27,10 +27,7 @@ import java.net.SocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -304,8 +301,10 @@ public class Monitoring {
         StringBuilder builder = new StringBuilder();
         builder.append("<html><body><h1>");
         builder.append("Nodes in error: <b>" + errorCount + "</b><br/>Monitoring node started at: " + startTime.toString() +
-                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Nr. of errors</th><th align=\"left\">Unreported errors</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
-                allNodes.stream().sorted().map(nodeDetail -> "<tr>"
+                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Total errors</th><th align=\"left\">Error streak</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
+                allNodes.stream()
+                        .sorted(Comparator.comparing(node -> (node.getNodeType() + node.getOwner())))
+                        .map(nodeDetail -> "<tr>"
                         + " <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
                         + "<td>" + nodeDetail.getAddress() + "</td>"
                         + "<td>" + nodeDetail.getOwner() + "</td>"
