@@ -11,6 +11,7 @@ import net.gpedro.integrations.slack.SlackApi;
 import org.berndpruenster.netlayer.tor.NativeTor;
 import org.berndpruenster.netlayer.tor.Tor;
 import org.berndpruenster.netlayer.tor.TorCtlException;
+import org.berndpruenster.netlayer.tor.TorSocket;
 import org.bitcoinj.core.Context;
 import org.bitcoinj.core.Peer;
 import org.bitcoinj.core.PeerAddress;
@@ -23,6 +24,7 @@ import javax.net.SocketFactory;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -31,6 +33,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -171,6 +175,10 @@ public class Monitoring {
                 handleError(api, node, "Result does not contain expected keyword: " + getFeesResult.getResult(), retry);
                 continue;
             }
+            //"btcTxFee": 310
+            Pattern p = Pattern.compile("\"btcTxFee\":(\\d+),");
+            Matcher m = p.matcher(getFeesResult.getResult());
+            node.setExtraString(m.find() ? m.group(1) : "Can't find txfee");
 
             ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
             if (getVersionResult.getError() != null) {
@@ -195,6 +203,34 @@ public class Monitoring {
             }
 
             markAsGoodNode(api, node);
+        }
+    }
+
+    // testing
+    private void testTorGET(NodeDetail node) {
+        PrintWriter wtr;
+        log.info(node.getAddress() + " " + node.getPort());
+        Socket socket = new TorSocket(node.getAddress(), 80, "TEST"); // each socket uses a random Tor stream id
+
+        try {
+            wtr = new PrintWriter(socket.getOutputStream());
+            wtr.println("GET /getFees HTTP/1.1");
+            wtr.println("Host: " + node.getAddress());
+            wtr.println("");
+            wtr.flush();
+            //Creates a BufferedReader that contains the server response
+            BufferedReader bufRead = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String outStr;
+
+            //Prints each line of the response
+            while ((outStr = bufRead.readLine()) != null) {
+                log.info(outStr);
+            }
+            //Closes out buffer and writer
+            bufRead.close();
+            wtr.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -245,8 +281,8 @@ public class Monitoring {
 
         if (node.nrErrorsUnreported == UNREPORTED_ERRORS_THRESHOLD) {
             log.error("Error in {} {} ({}), reason: {}", nodeType.toString(), address, owner, reason);
-            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " failed " + UNREPORTED_ERRORS_THRESHOLD + " times", "<"+owner+"> " + appendBadNodesSizeToString(reason));
-        } else if(node.nrErrorsUnreported < UNREPORTED_ERRORS_THRESHOLD){
+            SlackTool.send(api, "Error: " + nodeType.getPrettyName() + " " + address + " failed " + UNREPORTED_ERRORS_THRESHOLD + " times", "<" + owner + "> " + appendBadNodesSizeToString(reason));
+        } else if (node.nrErrorsUnreported < UNREPORTED_ERRORS_THRESHOLD) {
             log.debug("Scheduling a followup check for node: {}", node.toString());
             scheduleFollowupCheck(node, retry);
         }
@@ -307,15 +343,15 @@ public class Monitoring {
                 allNodes.stream()
                         .sorted(Comparator.comparing(node -> (node.getNodeType() + node.getOwner())))
                         .map(nodeDetail -> "<tr>"
-                        + " <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
-                        + "<td>" + nodeDetail.getAddress() + "</td>"
-                        + "<td>" + nodeDetail.getOwner() + "</td>"
-                        + "<td>" + (nodeDetail.hasError() ? "<b>Yes</b>" : "") + "</td>"
-                        + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
-                        + "<td>" + String.valueOf(nodeDetail.getNrErrorsUnreported()) + "</td>"
-                        + "<td>" + String.valueOf(nodeDetail.getErrorMinutesSinceStart()) + "</td>"
-                        + "<td>" + ((nodeDetail.getErrorReason().size() > 0) ? " reasons: " + nodeDetail.getReasonListAsString() : "") + "</td>"
-                        + "</tr>")
+                                + " <td>" + nodeDetail.getNodeType().getPrettyName() + "</td>"
+                                + "<td>" + nodeDetail.getAddress() + "</td>"
+                                + "<td>" + nodeDetail.getOwner() + "</td>"
+                                + "<td>" + (nodeDetail.hasError() ? "<b>Yes</b>" : "") + "</td>"
+                                + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
+                                + "<td>" + String.valueOf(nodeDetail.getNrErrorsUnreported()) + "</td>"
+                                + "<td>" + String.valueOf(nodeDetail.getErrorMinutesSinceStart()) + "</td>"
+                                + "<td>" + ((nodeDetail.getErrorReason().size() > 0) ? " reasons: " + nodeDetail.getReasonListAsString() : "") + "</td>"
+                                + "</tr>")
                         .collect(Collectors.joining("")));
         builder.append("</table></body></html>");
         return builder.toString();

@@ -22,6 +22,7 @@ public class NodeDetail implements Comparable<NodeDetail> {
     String owner;
     boolean isTor;
     NodeType nodeType;
+    String extraString; // provide some extra info to display in the status
     long nrErrorsSinceStart = 0;
     long nrErrorsUnreported = 0;
     LocalDateTime startTime = LocalDateTime.now();
