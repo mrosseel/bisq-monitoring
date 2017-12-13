@@ -106,6 +106,7 @@ public class Monitoring {
                 if (!verifyBtcNodeVersion(versionMessage)) {
                     handleError(api, node, "BTC Node has wrong version message: " + versionMessage.toString(), retry);
                 }
+                node.setExtraString(remotePeer.toString());
                 markAsGoodNode(api, node);
             } catch (InterruptedException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
@@ -176,7 +177,7 @@ public class Monitoring {
                 continue;
             }
             //"btcTxFee": 310
-            Pattern p = Pattern.compile("\"btcTxFee\":(\\d+),");
+            Pattern p = Pattern.compile("\"btcTxFee\":\\s*(\\d+),");
             Matcher m = p.matcher(getFeesResult.getResult());
             node.setExtraString(m.find() ? m.group(1) : "Can't find txfee");
 
@@ -350,7 +351,7 @@ public class Monitoring {
                                 + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
                                 + "<td>" + String.valueOf(nodeDetail.getNrErrorsUnreported()) + "</td>"
                                 + "<td>" + String.valueOf(nodeDetail.getErrorMinutesSinceStart()) + "</td>"
-                                + "<td>" + String.valueOf(nodeDetail.getExtraString()) + "</td>"
+                                + "<td>" + nodeDetail.getExtraString() == null? "" : String.valueOf(nodeDetail.getExtraString()) + "</td>"
                                 + "<td>" + ((nodeDetail.getErrorReason().size() > 0) ? " reasons: " + nodeDetail.getReasonListAsString() : "") + "</td>"
                                 + "</tr>")
                         .collect(Collectors.joining("")));
