@@ -106,7 +106,7 @@ public class Monitoring {
                 if (!verifyBtcNodeVersion(versionMessage)) {
                     handleError(api, node, "BTC Node has wrong version message: " + versionMessage.toString(), retry);
                 }
-                node.setExtraString(remotePeer.toString());
+                node.setExtraString("v="+remotePeer.getPeerVersionMessage().subVer+",height:"+remotePeer.getBestHeight());
                 markAsGoodNode(api, node);
             } catch (InterruptedException e) {
                 log.debug("getVersionHandshakeFuture failed {}", e);
