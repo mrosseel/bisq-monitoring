@@ -179,7 +179,7 @@ public class Monitoring {
             //"btcTxFee": 310
             Pattern p = Pattern.compile("\"btcTxFee\":\\s*(\\d+),");
             Matcher m = p.matcher(getFeesResult.getResult());
-            node.setExtraString(m.find() ? m.group(1) : "Can't find txfee");
+            node.setExtraString(m.find() ? m.group(1)+"s/b" : "Can't find txfee");
 
             ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
             if (getVersionResult.getError() != null) {
