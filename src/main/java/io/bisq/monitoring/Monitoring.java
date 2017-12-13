@@ -198,7 +198,7 @@ public class Monitoring {
             }
             correct = getPricesResult.getResult().contains("\"currencyCode\": \"BTC\"");
             if (!correct) {
-                handleError(api, node, "getAllMarketPrices does not contain our test string", retry);
+                handleError(api, node, "getAllMarketPrices does not contain our test string: " + getPricesResult.getResult(), retry);
                 continue;
             }
 
@@ -339,7 +339,7 @@ public class Monitoring {
         StringBuilder builder = new StringBuilder();
         builder.append("<html><body><h1>");
         builder.append("Nodes in error: <b>" + errorCount + "</b><br/>Monitoring node started at: " + startTime.toString() +
-                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Total errors</th><th align=\"left\">Error streak</th><th align=\"left\">Total error minutes</th><th align=\"left\">Reasons</th></tr>" +
+                "<br/><table style=\"width:100%\"><tr><th align=\"left\">Node Type</th><th align=\"left\">Address</th><th align=\"left\">Owner</th><th align=\"left\">Error?</th><th align=\"left\">Total errors</th><th align=\"left\">Error streak</th><th align=\"left\">Total error minutes</th><th align=\"left\">Extra info</th><th align=\"left\">Reasons</th></tr>" +
                 allNodes.stream()
                         .sorted(Comparator.comparing(node -> (node.getNodeType() + node.getOwner())))
                         .map(nodeDetail -> "<tr>"
@@ -350,6 +350,7 @@ public class Monitoring {
                                 + "<td>" + String.valueOf(nodeDetail.getNrErrorsSinceStart()) + "</td>"
                                 + "<td>" + String.valueOf(nodeDetail.getNrErrorsUnreported()) + "</td>"
                                 + "<td>" + String.valueOf(nodeDetail.getErrorMinutesSinceStart()) + "</td>"
+                                + "<td>" + String.valueOf(nodeDetail.getExtraString()) + "</td>"
                                 + "<td>" + ((nodeDetail.getErrorReason().size() > 0) ? " reasons: " + nodeDetail.getReasonListAsString() : "") + "</td>"
                                 + "</tr>")
                         .collect(Collectors.joining("")));
