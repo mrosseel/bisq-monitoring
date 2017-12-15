@@ -197,9 +197,10 @@ public class Monitoring {
                 handleError(api, node, getPricesResult.getError(), retry);
                 continue;
             }
-            correct = getPricesResult.getResult().contains("\"currencyCode\": \"BTC\"");
+            String testString = "\"currencyCode\": \"BTC\"";
+            correct = getPricesResult.getResult().contains(testString);
             if (!correct) {
-                handleError(api, node, "getAllMarketPrices does not contain our test string: " + getPricesResult.getResult(), retry);
+                handleError(api, node, "getAllMarketPrices does not contain our test string: " + testString, retry);
                 continue;
             }
 
