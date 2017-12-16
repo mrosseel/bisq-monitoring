@@ -188,7 +188,7 @@ public class Monitoring {
             }
             correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
             if (!correct) {
-                handleError(api, node, "Incorrect version:" + getVersionResult.getResult(), retry);
+                handleError(api, node, "Expected version " + nodeConfig.getPricenodeVersion() + ", actually: " + getVersionResult.getResult(), retry);
                 continue;
             }
 
