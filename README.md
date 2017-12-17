@@ -16,15 +16,8 @@ could be used as a guide on how to install everything.
 * tor is installed
 * curl is installed
 * netcat is installed
-* pipenv is installed
-* python 2.7 is installed
 
-Run:
-```
-pipenv install -r requirements.txt
-```
-
-Do this if you're on mac:
+Do this if you're on mac to have a working netcat:
 
 ```
 cp /usr/bin/nc /usr/local/bin/
