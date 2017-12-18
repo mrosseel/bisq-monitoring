@@ -68,6 +68,8 @@ btcnodes:
   owner: "@tbocek"
 - address: "5.189.166.193"
   owner: "@sgeisler"
+- address: "z33nukt7ngik3cpe.onion:8333"
+  owner: "@sgeisler"
 - address: "88.198.39.205"
   owner: "@jhoenicke"
 - address: "138.68.117.247"
