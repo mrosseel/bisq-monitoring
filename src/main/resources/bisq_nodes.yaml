@@ -50,6 +50,8 @@ btcnodes:
   owner: "@emzy"
 - address: "174.138.35.229"
   owner: "@ripcurlx"
+- address: "lgkvbvro67jomosw.onion"
+  owner: "@ripcurlx"
 - address: "sjyzmwwu6diiit3r.onion"
   owner: "@emzy"
 - address: "r3dsojfhwcm7x7p6.onion"
@@ -76,3 +78,8 @@ btcnodes:
   owner: "@miker"
 - address: "mxdtrjhe2yfsx3pg.onion"
   owner: "@miker"
+- address: "4jyh6llqj264oggs.onion"
+  owner: "@miker"
+- address: "67.207.75.7"
+  owner: "@miker"
+
