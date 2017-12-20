@@ -37,49 +37,79 @@ seednodes:
 - address: "fl3mmribyxgrv63c.onion"
   port: 8000
   owner: "@manfredkarrer"
+
 btcnodes:
-- address: "67.207.75.7"
-  owner: "@miker"
-- address: "78.47.61.83"
+# ManfredKarrer
+- address: "btc1.0-2-1.net"
+  owner: "@manfredkarrer"
+- address: "btc2.0-2-1.net"
+  owner: "@manfredkarrer"
+- address: "btc3.0-2-1.net"
+  owner: "@manfredkarrer"
+- address: "r3dsojfhwcm7x7p6.onion"
+  owner: "@manfredkarrer"
+- address: "vlf5i3grro3wux24.onion"
+  owner: "@manfredkarrer"
+- address: "i3a5xtzfm4xwtybd.onion"
+  owner: "@manfredkarrer"
+
+
+# emzy
+- address: "kirsche.emzy.de"
   owner: "@emzy"
-- address: "poyvpdt762gllauu.onion"
+- address: "fz6nsij6jiyuwlsc.onion"
   owner: "@emzy"
-- address: "62.75.210.81"
+
+- address: "node2.emzy.de"
   owner: "@emzy"
 - address: "c6ac4jdfyeiakex2.onion"
   owner: "@emzy"
-- address: "163.172.171.119"
+
+- address: "node1.emzy.de"
   owner: "@emzy"
-- address: "174.138.35.229"
-  owner: "@ripcurlx"
-- address: "lgkvbvro67jomosw.onion"
-  owner: "@ripcurlx"
 - address: "sjyzmwwu6diiit3r.onion"
   owner: "@emzy"
-- address: "r3dsojfhwcm7x7p6.onion"
+
+# cannot provide IP because no static IP
+- address: "poyvpdt762gllauu.onion"
   owner: "@emzy"
-- address: "vlf5i3grro3wux24.onion"
-  owner: "@alexej996"
-- address: "185.25.48.184"
-  owner: "@sqrrm"
-- address: "3r44ddzjitznyahw.onion"
-  owner: "@sqrrm"
-- address: "80.233.134.60"
-  owner: "@sqrrm"
-- address: "i3a5xtzfm4xwtybd.onion"
-  owner: "@sqrrm"
-- address: "192.41.136.217"
-  owner: "@tbocek"
-- address: "5.189.166.193"
-  owner: "@sgeisler"
-- address: "z33nukt7ngik3cpe.onion:8333"
-  owner: "@sgeisler"
-- address: "88.198.39.205"
-  owner: "@jhoenicke"
-- address: "138.68.117.247"
-  owner: "@miker"
-- address: "mxdtrjhe2yfsx3pg.onion"
+
+
+
+# ripcurlx
+- address: "bitcoin.christophatteneder.com"
+  owner: "@Christoph"
+- address: "lgkvbvro67jomosw.onion"
+  owner: "@Christoph"
+
+
+# miker
+- address: "btc.vante.me"
   owner: "@miker"
 - address: "4jyh6llqj264oggs.onion"
   owner: "@miker"
 
+- address: "btc2.vante.me"
+  owner: "@miker"
+- address: "mxdtrjhe2yfsx3pg.onion"
+  owner: "@miker"
+
+# sqrrm
+- address: "btc4.0-2-1.net"
+  owner: "@sqrrm"
+- address: "3r44ddzjitznyahw.onion"
+  owner: "@sqrrm"
+
+# sgeisler
+- address: "bcwat.ch"
+  owner: "@sgeisler"
+- address: "z33nukt7ngik3cpe.onion"
+  owner: "@sgeisler"
+
+
+# others
+- address: "btc.jochen-hoenicke.de"
+  owner: "@jhoenicke"
+
+- address: "bitcoin4-fullnode.csg.uzh.ch"
+  owner: "@tbocek"
