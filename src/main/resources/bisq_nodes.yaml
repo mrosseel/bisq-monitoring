@@ -1,6 +1,6 @@
 ---
 nodeTimeoutSecs: 120
-pricenodeVersion: "0.6.3"
+pricenodeVersion: "0.6.4"
 pricenodes:
 - address: "ceaanhbvluug4we6.onion"
   owner: "@miker"
@@ -16,15 +16,15 @@ seednodes:
 - address: "5quyxpxheyvzmb2d.onion"
   port: 8000
   owner: "@miker"
-- address: "ef5qnzx6znifo3df.onion"
-  port: 8000
-  owner: "@alexej996"
 - address: "s67qglwhkgkyvr74.onion"
   port: 8000
   owner: "@emzy"
+- address: "ef5qnzx6znifo3df.onion"
+  port: 8000
+  owner: "@manfredkarrer"
 - address: "jhgcy2won7xnslrb.onion"
   port: 8000
-  owner: "@sqrrm"
+  owner: "@manfredkarrer"
 - address: "3f3cu2yw7u457ztq.onion"
   port: 8000
   owner: "@manfredkarrer"
@@ -38,6 +38,8 @@ seednodes:
   port: 8000
   owner: "@manfredkarrer"
 btcnodes:
+- address: "67.207.75.7"
+  owner: "@miker"
 - address: "78.47.61.83"
   owner: "@emzy"
 - address: "poyvpdt762gllauu.onion"
@@ -79,7 +81,5 @@ btcnodes:
 - address: "mxdtrjhe2yfsx3pg.onion"
   owner: "@miker"
 - address: "4jyh6llqj264oggs.onion"
-  owner: "@miker"
-- address: "67.207.75.7"
   owner: "@miker"
 
