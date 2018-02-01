@@ -1,10 +1,10 @@
 ---
 nodeTimeoutSecs: 120
-pricenodeVersion: "0.6.4"
+pricenodeVersion: "0.7.0"
 pricenodes:
 - address: "ceaanhbvluug4we6.onion"
   owner: "@miker"
-- address: "rb2l2qale2pqzjyo.onion"
+- address: "62nvujg5iou3vu3i.onion"
   owner: "@manfredkarrer"
 - address: "xc3nh4juf2hshy7e.onion"
   owner: "@emzy"
@@ -71,9 +71,8 @@ btcnodes:
   owner: "@emzy"
 
 # cannot provide IP because no static IP
-- address: "poyvpdt762gllauu.onion"
+- address: "3xucqntxp5ddoaz5.onion"
   owner: "@emzy"
-
 
 
 # ripcurlx

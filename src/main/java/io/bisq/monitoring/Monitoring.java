@@ -204,6 +204,14 @@ public class Monitoring {
                 continue;
             }
 
+            // extract pricenode params to show in extraString field
+            ProcessResult getParamsResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getParams", processTimeoutSeconds);
+            if (getParamsResult.getError() != null) {
+                handleError(api, node, getParamsResult.getError(), retry);
+                continue;
+            }
+            node.setExtraString(node.getExtraString() + " - " + getParamsResult);
+
             markAsGoodNode(api, node);
         }
     }
