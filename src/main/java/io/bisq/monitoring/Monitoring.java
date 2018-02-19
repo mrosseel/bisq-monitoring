@@ -179,7 +179,12 @@ public class Monitoring {
             //"btcTxFee": 310
             Pattern p = Pattern.compile("\"btcTxFee\":\\s*(\\d+),");
             Matcher m = p.matcher(getFeesResult.getResult());
-            node.setExtraString(m.find() ? m.group(1)+"s/b" : "Can't find txfee");
+            if(m.find()) {
+                node.setExtraString(m.group(1)+"s/b");
+            } else {
+                node.setExtraString("Can't find txfee");
+                log.warn("the fee result : {} does not contain the required pattern", getFeesResult.getResult());
+            }
 
             ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
             if (getVersionResult.getError() != null) {
