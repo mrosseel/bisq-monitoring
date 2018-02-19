@@ -177,7 +177,7 @@ public class Monitoring {
                 continue;
             }
             //"btcTxFee": 310
-            Pattern p = Pattern.compile("\"btcTxFee\":\\s*(\\d+),");
+            Pattern p = Pattern.compile("\"btcTxFee\"\\s*:\\s*(\\d+),");
             Matcher m = p.matcher(getFeesResult.getResult());
             if(m.find()) {
                 node.setExtraString(m.group(1)+"s/b");
