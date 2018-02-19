@@ -193,10 +193,10 @@ public class Monitoring {
                 handleError(api, node, getPricesResult.getError(), retry);
                 continue;
             }
-            String testString = "\"currencyCode\": \"XMR\"";
-            correct = getPricesResult.getResult().contains(testString);
+            String regex = "\"currencyCode\"\\s*:\\s*\"XMR\"";
+            correct = MonitoringUtil.isPatternFound(getPricesResult.getResult(), regex);
             if (!correct) {
-                handleError(api, node, "getAllMarketPrices does not contain our test string: " + testString, retry);
+                handleError(api, node, "getAllMarketPrices does not contain our test string: " + regex, retry);
                 continue;
             }
 
