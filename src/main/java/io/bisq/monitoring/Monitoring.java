@@ -166,6 +166,7 @@ public class Monitoring {
         for (NodeDetail node : nodes) {
             Runnable retry = () -> this.checkPriceNodes(Lists.newArrayList(node), api);
 
+            ///////////////////// check that tx fees are returned correctly
             ProcessResult getFeesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : node.getPort()) + "/getFees", processTimeoutSeconds);
             if (getFeesResult.getError() != null) {
                 handleError(api, node, getFeesResult.getError(), retry);
@@ -186,17 +187,7 @@ public class Monitoring {
                 log.warn("the fee result : {} does not contain the required pattern", getFeesResult.getResult());
             }
 
-            ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
-            if (getVersionResult.getError() != null) {
-                handleError(api, node, getVersionResult.getError(), retry);
-                continue;
-            }
-            correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
-            if (!correct) {
-                handleError(api, node, "Expected version " + nodeConfig.getPricenodeVersion() + ", actually: " + getVersionResult.getResult(), retry);
-                continue;
-            }
-
+            ///////////////////// check that market prices are returned correctly
             ProcessResult getPricesResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getAllMarketPrices", processTimeoutSeconds);
             if (getPricesResult.getError() != null) {
                 handleError(api, node, getPricesResult.getError(), retry);
@@ -209,13 +200,25 @@ public class Monitoring {
                 continue;
             }
 
-            // extract pricenode params to show in extraString field
+            ///////////////////// extract params used for the pricenode
             ProcessResult getParamsResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getParams", processTimeoutSeconds);
             if (getParamsResult.getError() != null) {
                 handleError(api, node, getParamsResult.getError(), retry);
                 continue;
             }
             node.setExtraString(node.getExtraString() + " - " + getParamsResult.getResult());
+
+            ///////////////////// check version of pricenode
+            ProcessResult getVersionResult = executeProcess((node.isTor ? "torify " : "") + "curl " + node.getAddress() + (node.isTor ? "" : "8080") + "/getVersion", processTimeoutSeconds);
+            if (getVersionResult.getError() != null) {
+                handleError(api, node, getVersionResult.getError(), retry);
+                continue;
+            }
+            correct = nodeConfig.getPricenodeVersion().equals(getVersionResult.getResult());
+            if (!correct) {
+                handleError(api, node, "Expected version " + nodeConfig.getPricenodeVersion() + ", actually: " + getVersionResult.getResult(), retry);
+                continue;
+            }
 
             markAsGoodNode(api, node);
         }
