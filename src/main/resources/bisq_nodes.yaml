@@ -11,7 +11,7 @@ pricenodes:
 - address: "44mgyoe2b6oqiytt.onion"
   owner: "@manfredkarrer"
 - address: "5bmpx76qllutpcyp.onion"
-  owner: "@manfredkarrer"
+  owner: "@cbeams"
 seednodes:
 - address: "5quyxpxheyvzmb2d.onion"
   port: 8000
