@@ -89,13 +89,14 @@ public class Monitoring {
         int CONNECT_TIMEOUT_MSEC = processTimeoutSeconds * 1000;
         MainNetParams params = MainNetParams.get();
         Context context = new Context(params);
+        BlockingClient blockingClient = null;
 
         for (NodeDetail node : nodes) {
             Runnable retry = () -> this.checkBitcoinNode(Lists.newArrayList(node), api);
             try {
                 PeerAddress remoteAddress = new PeerAddress(node.getAddress(), node.getPort());
                 Peer peer = new Peer(params, new VersionMessage(params, 100000), remoteAddress, null);
-                BlockingClient blockingClient =
+                blockingClient =
                         new BlockingClient(node.isTor ? remoteAddress.toSocketAddress() : new InetSocketAddress(node.getAddress(), node.getPort()),
                                 peer, CONNECT_TIMEOUT_MSEC, node.isTor ? proxySocketFactory : SocketFactory.getDefault(),
                                 null);
@@ -126,7 +127,15 @@ public class Monitoring {
                         "getVersionHandshakeFuture() has timed out after "
                                 + CONNECT_TIMEOUT_MSEC / 1000.0 + " seconds with error: " + e.getMessage(), retry);
                 continue;
+            } finally {
+                closeConnection(blockingClient);
             }
+        }
+    }
+
+    private void closeConnection(BlockingClient blockingClient) {
+        if(blockingClient != null) {
+            blockingClient.closeConnection();
         }
     }
 
