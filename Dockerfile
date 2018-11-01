@@ -4,7 +4,7 @@
 ###
 
 # pull base image
-FROM openjdk:8-jdk
+FROM openjdk:8u181-jdk-stretch
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     maven \
@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN git clone https://github.com/mrosseel/bisq-monitoring.git
 WORKDIR /bisq-monitoring/
 #RUN git checkout Development
-RUN mvn clean install
+# workaround for https://stackoverflow.com/questions/53010200/maven-surefire-could-not-find-forkedbooter-class
+RUN mvn clean install -DforkCount=0
 
 COPY start_tor.sh ./
 RUN  chmod +x *.sh
