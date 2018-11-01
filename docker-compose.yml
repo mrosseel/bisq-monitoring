@@ -4,6 +4,7 @@ version: '2'
 
 services:
     monitoring:
+        restart: unless-stopped
         build:
             context: .
         image: bisq:monitoring
